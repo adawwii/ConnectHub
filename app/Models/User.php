@@ -3,7 +3,9 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
-use Database\Factories\UserFactory;
+use App\Models\Chat;
+use App\Models\Contacts;
+use App\Models\Message;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
@@ -45,5 +47,34 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
         ];
+    }
+
+    //attributes
+    
+    public function getFriendsAttribute()
+    {
+        $this->loadMissing([
+            'sentContacts.receiver', 
+            'receivedContacts.sender'
+            ]);
+            
+            $sent = $this->sentContacts->where('status', 'accepted')->pluck('receiver');
+            $received = $this->receivedContacts->where('status', 'accepted')->pluck('sender');
+            
+            return $sent->concat($received);
+    }
+
+    //RelationShips
+    public function messages(){
+        return $this->hasmany(Message::class);
+    }
+    public function chats(){
+        return $this->belongsToMany(Chat::class);
+    }
+    public function sentContacts(){
+        return $this->hasMany(Contacts::class,'sender_id');
+    }
+    public function receivedContacts(){
+        return $this->hasMany(Contacts::class,'receiver_id');
     }
 }

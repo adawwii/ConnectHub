@@ -13,12 +13,21 @@ class UserController extends Controller
         $this->userService = $userService;
     }
     //
-    public function index(){
+    public function show(){
         return view('auth.registeration');
+    }
+    //show login page
+    public function login(){
+        return view('auth.login');
     }
     //create user
     public function create(Request $request){
         $this->userService->newUser($request);
-        return redirect()->back();
+        return redirect()->route('chat-view');
+    }
+    //authenticate user
+    public function authenticate(Request $request){
+        $attempt = $this->userService->authUser($request);
+        return redirect()->route('chat-view');
     }
 }

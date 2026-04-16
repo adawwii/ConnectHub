@@ -34,7 +34,34 @@ class UserService
 
         //firing mail event
         event(new UserRegistered($user));
+        
+        //login
+        auth()->login($user);
+        
         //return to the controller
         return;
     }
+    //authenticate user
+    public function authUser(Request $request){
+        //form validation
+        $formData=$request->validate([
+            'email'=>'required||email',
+            'password'=>'required'
+        ]);
+        
+        //remember me 
+        $rememberMe = $request->boolean('remember');
+
+        //attempt to login
+        if(auth()->attempt($formData,$rememberMe))
+            {
+                $request->session()->regenerate();
+                $attempt = auth()->user();
+                //attempt success
+                return $attempt;
+            }
+            return $attempt = false;
+
+    }
+    
 }

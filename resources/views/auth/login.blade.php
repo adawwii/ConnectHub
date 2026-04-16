@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Register</title>
+    <title>Login</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="shortcut icon" href="https://cdn.iconscout.com/icon/premium/png-256-thumb/online-registration-icon-svg-download-png-2133475.png" type="image/x-icon">
 </head>
@@ -11,27 +11,13 @@
     <div class="bg-white shadow-xl rounded-2xl w-full max-w-md p-8">
 
         <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">
-            Create Account
+           Login
         </h2>
 
-        <form method="POST" action="{{ route('create-user') }}" class="space-y-5">
+        <form method="POST" action="{{ route('authenticate-user') }}" class="space-y-5">
             @csrf
 
-            <!-- Name -->
-            <div>
-                <label class="block text-sm text-gray-600 mb-1">Name</label>
-                <input 
-                    type="text" 
-                    name="name" 
-                    value="{{ old('name') }}"
-                    required
-                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    placeholder="Enter your name"
-                >
-                @error('name')
-                <p class="text-sm text-red-500 mt-1">{{ $message }}</p>
-                @enderror
-            </div>
+            
 
             <!-- Email -->
             <div>
@@ -39,7 +25,6 @@
                 <input 
                     type="email" 
                     name="email" 
-                    value="{{ old('email') }}"
                     required
                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     placeholder="Enter your email"
@@ -59,29 +44,25 @@
                     class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
                     placeholder="Enter password"
                 >
-                @error('password')
+                 @error('password')
                 <p class="text-sm text-red-500 mt-1">{{ $message }}</p>
                 @enderror
             </div>
-
-            <!-- Confirm Password -->
-            <div>
-                <label class="block text-sm text-gray-600 mb-1">Confirm Password</label>
-                <input 
-                    type="password" 
-                    name="password_confirmation" 
-                    required
-                    class="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                    placeholder="Confirm password"
-                >
+            <div class="flex items-center justify-between text-sm">
+                <label  class="flex items-center gap-2">
+                    <input type="checkbox" name="remember" {{ old('remember') ? 'checked' : '' }} class="rounded text-black-500">
+                    Remember me
+                </label>
             </div>
+
+            
 
             <!-- Submit -->
             <button 
                 type="submit"
                 class="w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition duration-200"
             >
-                Register
+                Login
             </button>
         </form>
 
