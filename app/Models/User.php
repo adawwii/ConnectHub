@@ -77,4 +77,12 @@ class User extends Authenticatable
     public function receivedContacts(){
         return $this->hasMany(Contacts::class,'receiver_id');
     }
+
+    /**
+     * The channels the user receives notification broadcasts on.
+     */
+    public function receivesBroadcastNotificationsOn(): string
+    {
+        return 'user.'.$this->id;
+    }
 }

@@ -4,13 +4,12 @@ namespace App\Events;
 
 use App\Models\User;
 use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PrivateChannel;
-use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
-// use Illuminate\Contracts\Queue\ShouldQueue;
+// use Illuminate\Broadcasting\PrivateChannel;
+// use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 
-class FriendRequestSent implements ShouldBroadcast
+class FriendRequestSent 
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -24,6 +23,7 @@ class FriendRequestSent implements ShouldBroadcast
     {
         $this->sender = $sender;
         $this->receiver = $receiver;
+        logger('event triggered');
     }
     
 
@@ -32,10 +32,20 @@ class FriendRequestSent implements ShouldBroadcast
      *
      * @return array<int, Channel>
      */
-    public function broadcastOn(): array
-    {
-        return [
-            new PrivateChannel('user.'.$this->receiver->id),
-        ];
-    }
+    // public function broadcastOn(): array
+    // {
+    //     logger('broadcastOn triggered');
+    //     return [
+    //         new PrivateChannel('user.'.$this->receiver->id),
+    //     ];
+    // }
+    // public function broadcastWith(): array
+    // {
+    //     logger('broadcastWith triggered');
+    //     return [
+    //         'sender_id' => $this->sender->id,
+    //         'sender_name' => $this->sender->name,
+    //         'message' => "You have a new friend request from {$this->sender->name}."
+    //     ];
+    // }
 }

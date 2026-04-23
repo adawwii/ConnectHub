@@ -21,6 +21,7 @@ class SendFriendRequestNotificationJob implements ShouldQueue
     {
         $this->sender = $sender;
         $this->receiver = $receiver;
+        logger("Job created for sender: {$sender->name} with id: {$sender->id} to receiver: {$receiver->name} with id: {$receiver->id}");
     }
 
     /**
@@ -28,6 +29,7 @@ class SendFriendRequestNotificationJob implements ShouldQueue
      */
     public function handle(): void
     {
+        logger("Job handling for sender: {$this->sender->name} with id: {$this->sender->id} to receiver: {$this->receiver->name} with id: {$this->receiver->id}");
         $this->receiver->notify(new FriendRequestNotification($this->sender));
     }
 }

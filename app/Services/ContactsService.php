@@ -54,6 +54,7 @@ class ContactsService
         }
         
         event(new FriendRequestSent($sender,$receiver));
+       
         $receiver_name=$receiver->name;
         
         return $attempt = ['type' => 'success', 'message'=>"Friend Request sent to $receiver_name"];

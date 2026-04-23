@@ -4,22 +4,26 @@ namespace App\Notifications;
 
 use App\Models\User;
 use Illuminate\Bus\Queueable;
+// use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Notifications\Notification;
 use Illuminate\Notifications\Messages\BroadcastMessage;
+use Illuminate\Notifications\Notification;
 
 class FriendRequestNotification extends Notification implements ShouldQueue
 {
     use Queueable;
 
-    public User $sender;
+    public int $sender_id;
+    public string $sender_name;
 
     /**
      * Create a new notification instance.
      */
     public function __construct(User $sender)
     {
-        $this->sender = $sender;
+        $this->sender_id = $sender->id;
+        $this->sender_name = $sender->name;
+        logger("notification triggered for sender: {$this->sender_name} with id: {$this->sender_id}");
     }
 
     /**
@@ -29,7 +33,7 @@ class FriendRequestNotification extends Notification implements ShouldQueue
      */
     public function via(object $notifiable): array
     {
-        return ['database','broadcast'];
+        return ['database', 'broadcast'];
     }
 
     /**
@@ -38,9 +42,9 @@ class FriendRequestNotification extends Notification implements ShouldQueue
     public function toDatabase(object $notifiable): array
     {
         return [
-            'sender_id' => $this->sender->id,
-            'sender_name' => $this->sender->name,
-            'message' => "You have a new friend request from {$this->sender->name}."
+            'sender_id' => $this->sender_id,
+            'sender_name' => $this->sender_name,
+            'message' => "You have a new friend request from {$this->sender_name}."
         ];
     }
     
@@ -50,13 +54,12 @@ class FriendRequestNotification extends Notification implements ShouldQueue
      *
      * @return array<string, mixed>
      */
-    public function toBroadcast($notifiable)
+    public function toBroadcast(object $notifiable): BroadcastMessage
      {
-        logger("You have a new friend request from {$this->sender->name}.");
         return new BroadcastMessage([
-            'sender_id' => $this->sender->id,
-            'sender_name' => $this->sender->name,
-            'message' => "You have a new friend request from {$this->sender->name}."
+            'sender_id' => $this->sender_id,
+            'sender_name' => $this->sender_name,
+            'message' => "You have a new friend request from {$this->sender_name}."
         ]);
     }
     

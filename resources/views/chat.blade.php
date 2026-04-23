@@ -129,7 +129,7 @@
 <script>
     //websocket for notification channel
     window.addEventListener('DOMContentLoaded', () => {
-    Echo.private('user.{{ auth()->id()}}')
+    Echo.private('user.{{ auth()->id() }}')
         .subscribed(() => {
             console.log('Subscribed to user.{{ auth()->id()}} channel');
         })

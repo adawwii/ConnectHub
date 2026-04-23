@@ -22,6 +22,7 @@ class SendFriendRequestNotification implements ShouldQueue
      */
     public function handle(FriendRequestSent $event): void
     {
+        logger('listener triggered');
         SendFriendRequestNotificationJob::dispatch($event->sender,$event->receiver);
     }
 }
