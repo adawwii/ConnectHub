@@ -28,4 +28,25 @@ class ContactsController extends Controller
             'response'=>$receiver['message']
         ]);
     }
+
+    // List notifications
+    public function notifications()
+    {
+        $notifications = $this->contactsService->getUnreadNotifications(auth()->user());
+        return response()->json($notifications);
+    }
+
+    // Accept friend request
+    public function acceptNotification($id)
+    {
+        $result = $this->contactsService->acceptRequest($id, auth()->user());
+        return response()->json($result);
+    }
+
+    // Reject friend request
+    public function rejectNotification($id)
+    {
+        $result = $this->contactsService->rejectRequest($id, auth()->user());
+        return response()->json($result);
+    }
 }

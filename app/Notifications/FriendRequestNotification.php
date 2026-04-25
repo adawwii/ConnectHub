@@ -44,7 +44,8 @@ class FriendRequestNotification extends Notification implements ShouldQueue
         return [
             'sender_id' => $this->sender_id,
             'sender_name' => $this->sender_name,
-            'message' => "You have a new friend request from {$this->sender_name}."
+            'message' => "You have a new friend request from {$this->sender_name}.",
+            'data_type' => 'friend_request_received'
         ];
     }
     
@@ -59,7 +60,8 @@ class FriendRequestNotification extends Notification implements ShouldQueue
         return new BroadcastMessage([
             'sender_id' => $this->sender_id,
             'sender_name' => $this->sender_name,
-            'message' => "You have a new friend request from {$this->sender_name}."
+            'message' => "You have a new friend request from {$this->sender_name}.",
+            'data_type' => 'friend_request_received'
         ]);
     }
     
