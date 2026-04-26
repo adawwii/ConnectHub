@@ -79,7 +79,9 @@ use Carbon\Traits\Date;
         <!-- Users List -->
         <div id="chatList" class="flex-1 overflow-y-auto">
             @foreach ($contacts as $contact )    
-            <div id="contact-{{ $contact->id }}" class="p-3 border-b cursor-pointer hover:bg-gray-100 chat-item">
+            <div id="contact-{{ $contact->id }}" 
+                 onclick="openChat('{{ $contact->id }}', '{{ $contact->name }}')"
+                 class="p-3 border-b cursor-pointer hover:bg-gray-100 chat-item">
                 {{ $contact->name }}
             </div>
             @endforeach
@@ -94,8 +96,8 @@ use Carbon\Traits\Date;
 @include('components.flash')
 
         <!-- Header -->
-        <div class="p-4 bg-white border-b font-semibold">
-            Chat
+        <div id="chatHeader" class="p-4 bg-white border-b font-semibold text-gray-700">
+            Select a contact to start chatting
         </div>
 
         <!-- Messages -->
@@ -103,17 +105,19 @@ use Carbon\Traits\Date;
         </div>
 
         <!-- Input -->
+        <form onsubmit="sendMessage(event)">
         <div class="p-3 bg-white border-t flex gap-2">
-            <input 
+                <input 
                 id="messageInput"
                 type="text"
                 class="flex-1 border rounded-lg px-3 py-2"
                 placeholder="Type message..."
-            >
-            <button onclick="sendMessage()" class="bg-blue-500 text-white px-4 rounded-lg">
-                Send
-            </button>
-        </div>
+                >
+                <button type='submit'  class="bg-blue-500 text-white px-4 rounded-lg">
+                    Send
+                </button>
+            </div>
+        </form>
 
     </div>
 
@@ -123,10 +127,12 @@ use Carbon\Traits\Date;
 <div class="md:hidden fixed bottom-4 right-4">
     <button onclick="toggleChat()" class="bg-blue-500 text-white px-4 py-2 rounded-full shadow">
         Open Chat
-    </button>
+</button>
 </div>
+    <script>
+    let activeContactId = null;
+    let activeChatId = null;
 
-<script>
     window.addEventListener('DOMContentLoaded', () => {
         loadNotifications();
 
@@ -150,6 +156,95 @@ use Carbon\Traits\Date;
                 }
             });
     });
+        
+
+    // Open a chat and fetch history
+    async function openChat(id, name) {
+        activeContactId = id;
+        
+        // UI Updates
+        document.getElementById('chatHeader').innerText = name;
+        highlightContact(id);
+
+        const container = document.getElementById('messages');
+        container.innerHTML = '<div class="text-center text-gray-400 py-10 italic">Loading conversation...</div>';
+
+        try {
+            const response = await fetch(`/chat/messages/${id}`,{credentials: 'same-origin'});
+            const messages = await response.json();
+            console.log(messages.chat_id);
+            const chatId=messages.chat_id;
+
+            
+            container.innerHTML = ''; // Clear loader
+            if (messages.messageData.length === 0) {
+                container.innerHTML = '<div class="text-center text-gray-400 py-10 italic">No messages yet. Say hi!</div>';
+            } else {
+                messages.messageData.forEach(msg => appendMessageToUI(msg));
+            }
+
+            //cleanning up the channel before resubscribing
+            if (activeChatId && activeChatId !== chatId) {
+                Echo.leave(`chat.${activeChatId}`);
+                console.log('🚪 Left previous chat channel:', activeChatId);
+            }
+
+            //defining current active chat
+            activeChatId = chatId;
+
+
+            Echo.private(`chat.${chatId}`)
+            .subscribed(() => {
+                console.log('✅ SUBSCRIBED TO CHAT:', chatId);
+            })
+            .listen('MessageSent', (e) => {
+                console.log(e);
+                if(e.senderId !== {{auth()->id()}}){
+                    appendMessageToUI(e.messageData);
+            scrollChatToBottom();
+
+                }
+            });
+            scrollChatToBottom();
+        } catch (error) {
+            console.error('Failed to load messages:', error);
+            container.innerHTML = '<div class="text-center text-red-400 py-10 italic">Error loading messages.</div>';
+        }
+        
+
+        // Show chat area on mobile if hidden
+        if (window.innerWidth < 768) {
+            toggleChat(); 
+        }
+    }
+
+    function highlightContact(id) {
+        document.querySelectorAll('.chat-item').forEach(el => {
+            el.classList.remove('bg-blue-50', 'border-l-4', 'border-blue-500');
+        });
+        const activeEl = document.getElementById(`contact-${id}`);
+        if (activeEl) {
+            activeEl.classList.add('bg-blue-50', 'border-l-4', 'border-blue-500');
+        }
+    }
+
+    function appendMessageToUI(msg) {
+        const container = document.getElementById('messages');
+        const div = document.createElement('div');
+        div.className = `flex ${msg.is_sender ? 'justify-end' : 'justify-start'}`;
+
+        div.innerHTML = `
+            <div class="${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-xs shadow-sm">
+                ${msg.message}
+            </div>
+        `;
+        container.appendChild(div);
+    }
+
+    function scrollChatToBottom() {
+        const container = document.getElementById('messages');
+        container.scrollTop = container.scrollHeight;
+    }
 
     async function loadNotifications() {
         try {
@@ -176,7 +271,6 @@ use Carbon\Traits\Date;
     }
 
     function addNotificationToUI(notif, isNew = false) {
-        
         const container = document.getElementById('notificationsContainer');
         const emptyMsg = container.querySelector('.text-gray-500');
         if (emptyMsg) emptyMsg.remove();
@@ -220,16 +314,11 @@ use Carbon\Traits\Date;
         div.id = `contact-${contact.id}`;
         div.innerText = contact.name;
         
-        // Add click listener if needed (to open chat)
-        div.onclick = () => {
-            // Logic to open chat
-            console.log(`Opening chat with ${contact.name}`);
-        };
+        // Click listener to open chat
+        div.onclick = () => openChat(contact.id, contact.name);
 
         chatList.appendChild(div);
     }
-
-
 
     async function handleNotifAction(id, action) {
         const notifElement = document.getElementById(`notif-${id}`);
@@ -269,12 +358,12 @@ use Carbon\Traits\Date;
 
     function updateBadgeCount(delta = 0) {
         const badge = document.getElementById('notifBadge');
+        if (!badge) return;
         let count = parseInt(badge.innerText) || 0;
         
         if (delta !== 0) {
             count += delta;
         } else {
-            // If delta is 0, we just want to set it based on current container children (excluding messages)
             const container = document.getElementById('notificationsContainer');
             count = container.querySelectorAll('.border-b').length;
         }
@@ -291,7 +380,6 @@ use Carbon\Traits\Date;
         document.getElementById('notifDropdown').classList.toggle('hidden');
     }
 
-    // 🔍 Filter Chats
     function filterChats(query) {
         let items = document.querySelectorAll('.chat-item');
         items.forEach(item => {
@@ -301,7 +389,6 @@ use Carbon\Traits\Date;
         });
     }
 
-    // ➕ Search user by email
     function searchUser(event) {
         event.preventDefault();
         let form = event.target;
@@ -312,6 +399,7 @@ use Carbon\Traits\Date;
         
         fetch("{{ route('contact-add') }}", {
             method: 'POST',
+            credentials: 'same-origin',
             headers: {
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': '{{ csrf_token() }}',
@@ -323,7 +411,6 @@ use Carbon\Traits\Date;
         .then(data => {
             btn.innerText = 'Add Friend';
             btn.disabled = false;
-            // Show some feedback or reload
             window.location.reload();
         })
         .catch(error => {
@@ -333,26 +420,36 @@ use Carbon\Traits\Date;
         });
     }
 
-    // 💬 Send Message
-    function sendMessage() {
-        let input = document.getElementById('messageInput');
-        let msg = input.value.trim();
+    async function sendMessage(event) {
+        event.preventDefault();
+        const input = document.getElementById('messageInput');
+        const msgText = input.value.trim();
 
-        if (!msg) return;
+        if (!msgText || !activeContactId) return;
 
-        let div = document.createElement('div');
-        div.className = 'flex justify-end';
-        div.innerHTML = `
-            <div class="bg-blue-500 text-white px-4 py-2 rounded-lg max-w-xs">
-                ${msg}
-            </div>
-        `;
-
-        document.getElementById('messages').appendChild(div);
+        // Optimistic Update
+        appendMessageToUI({ message: msgText, is_sender: true });
         input.value = '';
+        scrollChatToBottom();
+
+        try {
+            await fetch('/chat/send', {
+                method: 'POST',
+                credentials: 'same-origin',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': '{{ csrf_token() }}'
+                },
+                body: JSON.stringify({
+                    receiver_id: activeContactId,
+                    message: msgText
+                })
+            });
+        } catch (error) {
+            console.log('Error sending message:', error);
+        }
     }
 
-    // 📱 Mobile toggle
     function toggleChat() {
         document.querySelector('.md\\:flex').classList.toggle('hidden');
     }

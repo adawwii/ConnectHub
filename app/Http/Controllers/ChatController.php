@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\User;
 use App\Services\ChatService;
 
 
@@ -21,5 +22,11 @@ class ChatController extends Controller
         $contacts=$user->friends;
         // dd($contacts);
         return view('chat',compact('contacts'));
+    }
+    // retrive or create chat data 
+    public function openChat(User $friend)
+    {
+        $messages = $this->chatService->chatData($friend);
+        return response()->json($messages);
     }
 }

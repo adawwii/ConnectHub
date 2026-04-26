@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\ChatController;
 use App\Http\Controllers\ContactsController;
+use App\Http\Controllers\MessageController;
 use App\Http\Controllers\UserController;
 use Illuminate\Support\Facades\Route;
 
@@ -18,4 +19,6 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifications', [ContactsController::class, 'notifications'])->name('notifications.index');
     Route::post('/notifications/{id}/accept', [ContactsController::class, 'acceptNotification'])->name('notifications.accept');
     Route::post('/notifications/{id}/reject', [ContactsController::class, 'rejectNotification'])->name('notifications.reject');
+    Route::get('chat/messages/{friend}', [ChatController::class, 'openChat'])->name('openChat');
+    Route::post('chat/send', [MessageController::class, 'sendMessage'])->name('sendMessage');
 });
