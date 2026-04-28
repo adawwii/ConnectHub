@@ -8,7 +8,12 @@ use Illuminate\Database\Eloquent\Model;
 
 class Message extends Model
 {
-    protected $fillable = ['chat_id', 'user_id', 'message'];
+    protected $fillable = ['chat_id', 'user_id', 'message', 'delivered_at', 'seen_at'];
+
+    protected $casts = [
+        'delivered_at' => 'datetime',
+        'seen_at'      => 'datetime',
+    ];
     //RelationShips
     public function chat(){
         return $this->belongsTo(Chat::class);

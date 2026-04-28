@@ -12,12 +12,12 @@ use Carbon\Traits\Date;
     @vite(['resources/js/app.js'])
 </head>
 <body class="bg-gray-100 h-screen flex flex-col">
-<!-- 🔝 Top Navbar -->
+<!-- Top Navbar -->
 <div class="bg-white shadow px-4 py-3 flex justify-between items-center">
 
     <h1 class="font-bold text-lg">Chat App</h1>
 
-    <!-- 🔔 Notifications -->
+    <!-- Notifications -->
     <div class="relative">
         <button onclick="toggleNotifications()" class="relative">
             🔔
@@ -41,13 +41,13 @@ use Carbon\Traits\Date;
 
 </div>
 
-<!-- 📱 Main Layout -->
+<!-- Main Layout -->
 <div class="flex flex-1 overflow-hidden">
 
     <!-- Sidebar -->
     <div class="w-full md:w-1/3 lg:w-1/4 bg-white border-r flex flex-col">
 
-        <!-- 🔍 Search Chats -->
+        <!-- Search Chats -->
         <div class="p-3 border-b">
             <input 
                 type="text" 
@@ -57,7 +57,7 @@ use Carbon\Traits\Date;
             >
         </div>
 
-        <!-- ➕ Add Friend -->
+        <!-- Add Friend -->
         <div class="p-3 border-b">
             <form action="{{ route('contact-add') }}" method="POST"  onsubmit="searchUser(event)">
                 @csrf
@@ -123,7 +123,7 @@ use Carbon\Traits\Date;
 
 </div>
 
-<!-- 📱 Mobile Chat Toggle -->
+<!-- Mobile Chat Toggle -->
 <div class="md:hidden fixed bottom-4 right-4">
     <button onclick="toggleChat()" class="bg-blue-500 text-white px-4 py-2 rounded-full shadow">
         Open Chat
@@ -135,6 +135,7 @@ use Carbon\Traits\Date;
 
     window.addEventListener('DOMContentLoaded', () => {
         loadNotifications();
+        receiveFallbackMessages();
 
         Echo.private('user.{{ auth()->id() }}')
             .subscribed(() => {
@@ -172,7 +173,7 @@ use Carbon\Traits\Date;
         try {
             const response = await fetch(`/chat/messages/${id}`,{credentials: 'same-origin'});
             const messages = await response.json();
-            console.log(messages.chat_id);
+            console.log(messages.messageData);
             const chatId=messages.chat_id;
 
             
@@ -186,7 +187,7 @@ use Carbon\Traits\Date;
             //cleanning up the channel before resubscribing
             if (activeChatId && activeChatId !== chatId) {
                 Echo.leave(`chat.${activeChatId}`);
-                console.log('🚪 Left previous chat channel:', activeChatId);
+                console.log(' Left previous chat channel:', activeChatId);
             }
 
             //defining current active chat
@@ -195,15 +196,17 @@ use Carbon\Traits\Date;
 
             Echo.private(`chat.${chatId}`)
             .subscribed(() => {
-                console.log('✅ SUBSCRIBED TO CHAT:', chatId);
+                console.log('Subscribed to chat:', chatId);
             })
             .listen('MessageSent', (e) => {
-                console.log(e);
-                if(e.senderId !== {{auth()->id()}}){
+                if (e.senderId !== {{ auth()->id() }}) {
                     appendMessageToUI(e.messageData);
-            scrollChatToBottom();
-
+                    scrollChatToBottom();
                 }
+            })
+            .listen('MessageSeen', (e) => {
+                // Update the tick on the sender's message bubble in real-time
+                updateMessageTicks(e.messageId, e.delivered_at, e.seen_at);
             });
             scrollChatToBottom();
         } catch (error) {
@@ -229,16 +232,37 @@ use Carbon\Traits\Date;
     }
 
     function appendMessageToUI(msg) {
+        // Only mark as seen if WE received it (not our own messages)
+        if (!msg.is_sender) messageSeen(msg.messageId);
+
         const container = document.getElementById('messages');
         const div = document.createElement('div');
         div.className = `flex ${msg.is_sender ? 'justify-end' : 'justify-start'}`;
 
+        const ticks = msg.is_sender ? getTicksHtml(msg.delivered_at, msg.seen_at) : '';
+
         div.innerHTML = `
-            <div class="${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-xs shadow-sm">
-                ${msg.message}
+            <div id="msg-${msg.messageId}" class="${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-xs shadow-sm">
+                <span>${msg.message}</span>
+                <span class="tick-status block text-right text-xs mt-1 leading-none">${ticks}</span>
             </div>
         `;
         container.appendChild(div);
+    }
+
+    // Returns tick HTML based on delivered_at / seen_at timestamps
+    function getTicksHtml(delivered_at, seen_at) {
+        if (seen_at)      return '<span style="color:#00ff00;font-weight:800" title="Seen">✓✓</span>';
+        if (delivered_at) return '<span style="color:#dfdfdf; font-weight:800" title="Delivered">✓✓</span>';
+        return '<span style="color:#e2e8f0" title="Sent">✓</span>';
+    }
+
+    // Updates the tick indicator on a specific message bubble (called on MessageSeen broadcast)
+    function updateMessageTicks(messageId, delivered_at, seen_at) {
+        const bubble = document.getElementById(`msg-${messageId}`);
+        if (!bubble) return;
+        const tickSpan = bubble.querySelector('.tick-status');
+        if (tickSpan) tickSpan.innerHTML = getTicksHtml(delivered_at, seen_at);
     }
 
     function scrollChatToBottom() {
@@ -268,6 +292,44 @@ use Carbon\Traits\Date;
         } catch (error) {
             console.error('Error loading notifications:', error);
         }
+    }
+    async function receiveFallbackMessages() {
+        fetch("{{ route('fallback-messages') }}", {
+            method: 'PUT',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            console.log('received fall back messages');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+
+    async function messageSeen(msgId) {
+         fetch("{{ route('seen-message') }}", {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ message: msgId })
+        })
+        .then(response => response.json())
+        .then(data => {
+            
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
     }
 
     function addNotificationToUI(notif, isNew = false) {
@@ -427,13 +489,14 @@ use Carbon\Traits\Date;
 
         if (!msgText || !activeContactId) return;
 
-        // Optimistic Update
-        appendMessageToUI({ message: msgText, is_sender: true });
+        // Optimistic update with a temporary ID so the bubble exists immediately
+        const tempId = `temp-${Date.now()}`;
+        appendMessageToUI({ messageId: tempId, message: msgText, is_sender: true });
         input.value = '';
         scrollChatToBottom();
 
         try {
-            await fetch('/chat/send', {
+            const response = await fetch('/chat/send', {
                 method: 'POST',
                 credentials: 'same-origin',
                 headers: {
@@ -445,6 +508,13 @@ use Carbon\Traits\Date;
                     message: msgText
                 })
             });
+
+            // Swap the temp ID for the real message ID so MessageSeen ticks work
+            const saved = await response.json();
+            const tempBubble = document.getElementById(`msg-${tempId}`);
+            if (tempBubble && saved.id) {
+                tempBubble.id = `msg-${saved.id}`;
+            }
         } catch (error) {
             console.log('Error sending message:', error);
         }

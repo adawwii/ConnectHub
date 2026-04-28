@@ -33,8 +33,11 @@ class ChatService
         if($messages){
              $messagesContent =['chat_id' => $chat->id , 'messageData' => $messages->map(function ($singleMessage) use ($onlineUser) {
         return [
-            'is_sender' => $singleMessage->user_id === $onlineUser->id,
-            'message'   => $singleMessage->message
+            'messageId'    => $singleMessage->id,
+            'is_sender'    => $singleMessage->user_id === $onlineUser->id,
+            'message'      => $singleMessage->message,
+            'delivered_at' => $singleMessage->delivered_at,
+            'seen_at'      => $singleMessage->seen_at,
         ];
     })];
         }

@@ -23,4 +23,17 @@ class MessageController extends Controller
        
         return response()->json($message);
     }
+    //receive fallback messages
+    public function fallbackUpdate()
+    {
+        $this->messageService->fallback(auth()->user());
+        return response()->json();
+    }
+    //update message to seen
+    public function messageSeen(Request $request)
+    {
+        $this->messageService->messageSeen($request);
+
+        return response()->json();
+    }
 }
