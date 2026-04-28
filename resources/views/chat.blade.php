@@ -239,12 +239,15 @@ use Carbon\Traits\Date;
         const div = document.createElement('div');
         div.className = `flex ${msg.is_sender ? 'justify-end' : 'justify-start'}`;
 
-        const ticks = msg.is_sender ? getTicksHtml(msg.delivered_at, msg.seen_at) : '';
+        // Only include the tick status container if it's a message WE sent
+        const statusHtml = msg.is_sender 
+            ? `<span class="tick-status block text-right text-xs mt-1 leading-none">${getTicksHtml(msg.delivered_at, msg.seen_at)}</span>` 
+            : '';
 
         div.innerHTML = `
             <div id="msg-${msg.messageId}" class="${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-xs shadow-sm">
                 <span>${msg.message}</span>
-                <span class="tick-status block text-right text-xs mt-1 leading-none">${ticks}</span>
+                ${statusHtml}
             </div>
         `;
         container.appendChild(div);
