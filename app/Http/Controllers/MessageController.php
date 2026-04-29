@@ -36,4 +36,9 @@ class MessageController extends Controller
 
         return response()->json();
     }
+    //update message to delivered
+    public function messageDelivered(Request $request){
+        $this->messageService->messageDelivered($request);
+        return response()->json();
+    }
 }

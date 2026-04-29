@@ -2,8 +2,9 @@
 
 namespace App\Services;
 
-use App\Events\MessageSent;
+use App\Events\MessageDelivered;
 use App\Events\MessageSeen as MessageSeenEvent;
+use App\Events\MessageSent;
 use App\Models\Chat;
 use App\Models\Message;
 use App\Models\User;
@@ -34,6 +35,7 @@ class MessageService
         ]);
         
        event(new MessageSent($message));
+       event(new MessageDelivered($message,$receiver));
 
         return $message;
     }
@@ -65,6 +67,21 @@ class MessageService
 
         if ($updated) {
             $message = $this->message->find($request->message);
+            event(new MessageSeenEvent($message));
+        }
+
+        return;
+    }
+    //update message to delivered
+    public function messageDelivered(Request $request){
+         $updated = $this->message
+            ->where('id', $request->messageId)
+            ->update([
+                'delivered_at' => DB::raw('COALESCE(delivered_at, NOW())'),
+            ]);
+
+        if ($updated) {
+            $message = $this->message->find($request->messageId);
             event(new MessageSeenEvent($message));
         }
 

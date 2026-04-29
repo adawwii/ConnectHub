@@ -155,6 +155,9 @@ use Carbon\Traits\Date;
                         name: notification.sender_name
                     });
                 }
+            })
+            .listen('MessageDelivered', (e) => {
+                messageDeliveredSuccess(e);
             });
     });
         
@@ -208,7 +211,8 @@ use Carbon\Traits\Date;
                 // Update the tick on the sender's message bubble in real-time
                 updateMessageTicks(e.messageId, e.delivered_at, e.seen_at);
             });
-            scrollChatToBottom();
+            // Scroll to bottom after all messages are rendered
+            setTimeout(scrollChatToBottom, 50);
         } catch (error) {
             console.error('Failed to load messages:', error);
             container.innerHTML = '<div class="text-center text-red-400 py-10 italic">Error loading messages.</div>';
@@ -245,18 +249,19 @@ use Carbon\Traits\Date;
             : '';
 
         div.innerHTML = `
-            <div id="msg-${msg.messageId}" class="${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-xs shadow-sm">
+            <div id="msg-${msg.messageId}" class="${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
                 <span>${msg.message}</span>
                 ${statusHtml}
             </div>
         `;
         container.appendChild(div);
+        
     }
 
     // Returns tick HTML based on delivered_at / seen_at timestamps
     function getTicksHtml(delivered_at, seen_at) {
-        if (seen_at)      return '<span style="color:#00ff00;font-weight:800" title="Seen">✓✓</span>';
-        if (delivered_at) return '<span style="color:#dfdfdf; font-weight:800" title="Delivered">✓✓</span>';
+        if (seen_at)      return '<span style="color:#00ff00;font-weight:800;pointer-events:none;" title="Seen">✓✓</span>';
+        if (delivered_at) return '<span style="color:#dfdfdf; font-weight:800;pointer-events:none;" title="Delivered">✓✓</span>';
         return '<span style="color:#e2e8f0" title="Sent">✓</span>';
     }
 
@@ -270,7 +275,12 @@ use Carbon\Traits\Date;
 
     function scrollChatToBottom() {
         const container = document.getElementById('messages');
-        container.scrollTop = container.scrollHeight;
+        if (container) {
+            container.scrollTo({
+                top: container.scrollHeight,
+                behavior: 'smooth'
+            });
+        }
     }
 
     async function loadNotifications() {
@@ -309,6 +319,24 @@ use Carbon\Traits\Date;
         .then(response => response.json())
         .then(data => {
             console.log('received fall back messages');
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+    }
+    async function messageDeliveredSuccess(e) {
+         fetch("{{ route('message-delivered-online') }}", {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ userId: e.senderId, messageId: e.messageId })
+        })
+        .then(response => response.json())
+        .then(data => {
         })
         .catch(error => {
             console.error('Error:', error);
