@@ -25,4 +25,5 @@ Route::middleware('auth')->group(function () {
     Route::patch('chat/messages/seen/bulk', [MessageController::class, 'markChatAsSeen'])->name('seen-message-bulk');
     Route::patch('chat/messages/delivered',[MessageController::class, 'messageDelivered'])->name('message-delivered-online');
     Route::get('chat/messages/{friend}', [ChatController::class, 'openChat'])->name('openChat');
+    Route::post('/user/logout', [UserController::class, 'logout'])->name('logout');
 });

@@ -30,4 +30,11 @@ class UserController extends Controller
         $attempt = $this->userService->authUser($request);
         return redirect()->route('chat-view');
     }
+
+    public function logout(Request $request){
+        auth()->logout();
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
+        return redirect()->route('login-user');
+    }
 }

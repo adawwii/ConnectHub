@@ -6,6 +6,7 @@ use Carbon\Traits\Date;
 <html lang="en">
 <head>
     <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
@@ -17,26 +18,36 @@ use Carbon\Traits\Date;
 
     <h1 class="font-bold text-lg">Chat App</h1>
 
-    <!-- Notifications -->
-    <div class="relative">
-        <button onclick="toggleNotifications()" class="relative">
-            🔔
-            {{-- using websockets for notification --}}
-            <span id="notifBadge" class="absolute -top-1 -right-2 bg-red-500 text-white text-xs px-1 rounded-full {{ auth()->user()->unreadNotifications->count() == 0 ? 'hidden' : '' }}">
-                {{ auth()->user()->unreadNotifications->count() }}
-            </span>
-        </button>
+    <div class="flex items-center gap-4">
+        <!-- Notifications -->
+        <div class="relative">
+            <button onclick="toggleNotifications()" class="relative">
+                🔔
+                {{-- using websockets for notification --}}
+                <span id="notifBadge" class="absolute -top-1 -right-2 bg-red-500 text-white text-xs px-1 rounded-full {{ auth()->user()->unreadNotifications->count() == 0 ? 'hidden' : '' }}">
+                    {{ auth()->user()->unreadNotifications->count() }}
+                </span>
+            </button>
 
-        <!-- Dropdown -->
-        <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white shadow-xl rounded-lg z-50 border">
-            <div class="p-3 border-b font-semibold flex justify-between items-center">
-                <span>Notifications</span>
-            </div>
-            <div id="notificationsContainer" class="max-h-60 overflow-y-auto">
+            <!-- Dropdown -->
+            <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white shadow-xl rounded-lg z-50 border">
+                <div class="p-3 border-b font-semibold flex justify-between items-center">
+                    <span>Notifications</span>
+                </div>
+                <div id="notificationsContainer" class="max-h-60 overflow-y-auto">
                 <!-- JS will render notifications here -->
-                <div class="p-3 text-sm text-gray-500 text-center">Loading...</div>
+                    <div class="p-3 text-sm text-gray-500 text-center">Loading...</div>
+                </div>
             </div>
         </div>
+
+        <!-- Logout -->
+        <form action="{{ route('logout') }}" method="POST">
+            @csrf
+            <button type="submit" class="text-sm bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition">
+                Logout
+            </button>
+        </form>
     </div>
 
 </div>
@@ -45,7 +56,7 @@ use Carbon\Traits\Date;
 <div class="flex flex-1 overflow-hidden">
 
     <!-- Sidebar -->
-    <div class="w-full md:w-1/3 lg:w-1/4 bg-white border-r flex flex-col">
+    <div id="sidebar" class="w-full md:w-1/3 lg:w-1/4 bg-white border-r flex flex-col">
 
         <!-- Search Chats -->
         <div class="p-3 border-b">
@@ -99,11 +110,12 @@ use Carbon\Traits\Date;
     </div>
 
     <!-- Chat Area -->
-    <div class="hidden md:flex flex-1 flex-col">
+    <div id="chatArea" class="hidden md:flex flex-1 flex-col">
 @include('components.flash')
 
         <!-- Header -->
         <div id="chatHeader" class="p-4 bg-white border-b font-semibold text-gray-700 flex items-center gap-2">
+            <button id="backBtn" onclick="showSidebar()" class="md:hidden text-blue-500 mr-1">← </button>
             <span id="chatTitle">Select a contact to start chatting</span>
             <div id="header-status-dot" class="w-3 h-3 rounded-full bg-gray-400 hidden"></div>
         </div>
@@ -134,12 +146,7 @@ use Carbon\Traits\Date;
 
 </div>
 
-<!-- Mobile Chat Toggle -->
-<div class="md:hidden fixed bottom-4 right-4">
-    <button onclick="toggleChat()" class="bg-blue-500 text-white px-4 py-2 rounded-full shadow">
-        Open Chat
-</button>
-</div>
+
     <script>
     let activeContactId = null;
     let activeChatId = null;
@@ -265,9 +272,10 @@ use Carbon\Traits\Date;
         }
         
 
-        // Show chat area on mobile if hidden
         if (window.innerWidth < 768) {
-            toggleChat(); 
+            document.getElementById('sidebar').classList.add('hidden');
+            document.getElementById('chatArea').classList.remove('hidden');
+            document.getElementById('chatArea').classList.add('flex');
         }
     }
 
@@ -670,8 +678,12 @@ use Carbon\Traits\Date;
         }
     }
 
-    function toggleChat() {
-        document.querySelector('.md\\:flex').classList.toggle('hidden');
+    function showSidebar() {
+        if (window.innerWidth < 768) {
+            document.getElementById('chatArea').classList.add('hidden');
+            document.getElementById('chatArea').classList.remove('flex');
+            document.getElementById('sidebar').classList.remove('hidden');
+        }
     }
 </script>
 
