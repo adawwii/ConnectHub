@@ -81,8 +81,15 @@ use Carbon\Traits\Date;
             @foreach ($contacts as $contact )    
             <div id="contact-{{ $contact->id }}" 
                  onclick="openChat('{{ $contact->id }}', '{{ $contact->name }}')"
-                 class="p-3 border-b cursor-pointer hover:bg-gray-100 chat-item">
-                {{ $contact->name }}
+                 class="p-3 border-b cursor-pointer hover:bg-gray-100 chat-item flex items-center justify-between">
+               <span>{{ $contact->name }}</span>
+
+               <!-- Status Dot -->
+                <div 
+                id="status-dot-{{ $contact->id }}"
+                class="w-3 h-3 rounded-full bg-gray-400 transition-colors duration-300" 
+                title="offline">
+                </div>
             </div>
             @endforeach
 
@@ -96,8 +103,9 @@ use Carbon\Traits\Date;
 @include('components.flash')
 
         <!-- Header -->
-        <div id="chatHeader" class="p-4 bg-white border-b font-semibold text-gray-700">
-            Select a contact to start chatting
+        <div id="chatHeader" class="p-4 bg-white border-b font-semibold text-gray-700 flex items-center gap-2">
+            <span id="chatTitle">Select a contact to start chatting</span>
+            <div id="header-status-dot" class="w-3 h-3 rounded-full bg-gray-400 hidden"></div>
         </div>
 
         <!-- Messages -->
@@ -159,6 +167,28 @@ use Carbon\Traits\Date;
             .listen('MessageDelivered', (e) => {
                 messageDeliveredSuccess(e);
             });
+        
+        Echo.join('user-status.{{auth()->id() }}')
+            .here((users) =>
+            console.log('you are online'))
+            .error((error) =>
+            console.error('status channel error:', error));
+        
+        const contactIds = @json($contacts->pluck('id'));
+
+        contactIds.forEach(id => {
+            Echo.join(`user-status.${id}`)
+                .here((users) => {
+                    const isFriendOnline = users.some(u => u.id == id);
+                    updateStatusUI(id, isFriendOnline);  
+                })
+                .joining((user) => {
+                    if (user.id == id) updateStatusUI(id, true);
+                })
+                .leaving((user) => {
+                    if (user.id == id) updateStatusUI(id, false);
+                });
+        });
     });
         
 
@@ -167,7 +197,15 @@ use Carbon\Traits\Date;
         activeContactId = id;
         
         // UI Updates
-        document.getElementById('chatHeader').innerText = name;
+        document.getElementById('chatTitle').innerText = name;
+        const headerDot = document.getElementById('header-status-dot');
+        headerDot.classList.remove('hidden');
+        
+        const sidebarDot = document.getElementById(`status-dot-${id}`);
+        if (sidebarDot) {
+            headerDot.className = sidebarDot.className;
+        }
+
         highlightContact(id);
 
         const container = document.getElementById('messages');
@@ -197,6 +235,11 @@ use Carbon\Traits\Date;
             activeChatId = chatId;
 
 
+            // Mark entire chat as seen in one request
+            if (messages.messageData.length > 0) {
+                markChatAsSeen(chatId);
+            }
+
             Echo.private(`chat.${chatId}`)
             .subscribed(() => {
                 console.log('Subscribed to chat:', chatId);
@@ -204,7 +247,8 @@ use Carbon\Traits\Date;
             .listen('MessageSent', (e) => {
                 if (e.senderId !== {{ auth()->id() }}) {
                     appendMessageToUI(e.messageData);
-                    scrollChatToBottom();
+                    messageSeen(e.messageData.messageId); // Mark single incoming message as seen
+                    setTimeout(scrollChatToBottom, 50);
                 }
             })
             .listen('MessageSeen', (e) => {
@@ -236,9 +280,6 @@ use Carbon\Traits\Date;
     }
 
     function appendMessageToUI(msg) {
-        // Only mark as seen if WE received it (not our own messages)
-        if (!msg.is_sender) messageSeen(msg.messageId);
-
         const container = document.getElementById('messages');
         const div = document.createElement('div');
         div.className = `flex ${msg.is_sender ? 'justify-end' : 'justify-start'}`;
@@ -343,6 +384,19 @@ use Carbon\Traits\Date;
         });
     }
 
+    async function markChatAsSeen(chatId) {
+        fetch("{{ route('seen-message-bulk') }}", {
+            method: 'PATCH',
+            credentials: 'same-origin',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            },
+            body: JSON.stringify({ chat_id: chatId })
+        }).catch(error => console.error('Error marking chat as seen:', error));
+    }
+
     async function messageSeen(msgId) {
          fetch("{{ route('seen-message') }}", {
             method: 'PATCH',
@@ -396,6 +450,33 @@ use Carbon\Traits\Date;
         }
     }
 
+    function updateStatusUI(userId, isOnline) {
+        const sidebarDot = document.getElementById(`status-dot-${userId}`);
+        if (sidebarDot) {
+            setDotStatus(sidebarDot, isOnline);
+        }
+
+        if (activeContactId == userId) {
+            const headerDot = document.getElementById('header-status-dot');
+            if (headerDot) {
+                setDotStatus(headerDot, isOnline);
+            }
+        }
+    }
+
+    function setDotStatus(el, isOnline) {
+        if (isOnline) {
+            el.classList.remove('bg-gray-400');
+            el.classList.add('bg-green-500');
+            el.title = 'online';
+        } else {
+            el.classList.remove('bg-green-500');
+            el.classList.add('bg-gray-400');
+            el.title = 'offline';
+        }
+    }
+
+
     function addContactToSidebar(contact) {
         const chatList = document.getElementById('chatList');
         
@@ -409,8 +490,20 @@ use Carbon\Traits\Date;
         
         // Click listener to open chat
         div.onclick = () => openChat(contact.id, contact.name);
-
         chatList.appendChild(div);
+
+        Echo.join(`user-status.${contact.id}`)
+        .here((users) => {
+            const isFriendOnline = users.some(u => u.id == contact.id);
+            updateStatusUI(contact.id, isFriendOnline);
+        })
+        .joining((user) =>{ 
+            if (user.id == contact.id) updateStatusUI(contact.id, true);
+        })
+        .leaving((user) =>{
+            if (user.id == contact.id) updateStatusUI(contact.id, false);
+        });
+
     }
 
     async function handleNotifAction(id, action) {

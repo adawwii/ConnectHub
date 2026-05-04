@@ -9,3 +9,13 @@ Broadcast::channel('user.{id}', function ($user, $id) {
 Broadcast::channel('chat.{chatId}', function ($user, $chatId) {
     return $user->chats->contains($chatId);
 });
+
+Broadcast::channel('user-status.{userId}', function ($user, $userId){
+    if ($user->id == $userId || $user->isFriendsWith($userId)) {
+        return [
+            'id' => $user->id,
+            'name' => $user->name
+        ];
+    }
+    return false;
+});

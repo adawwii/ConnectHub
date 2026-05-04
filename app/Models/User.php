@@ -49,6 +49,16 @@ class User extends Authenticatable
         ];
     }
 
+    public function isFriendsWith($userId)
+    {
+        return Contacts::where('status', 'accepted')
+        ->where(function($query) use ($userId) {
+            $query->where([['sender_id', $this->id], ['receiver_id', $userId]])
+            ->orWhere([['sender_id', $userId], ['receiver_id', $this->id]]);
+        })
+        ->exists();
+    }
+
     //attributes
     
     public function getFriendsAttribute()

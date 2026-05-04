@@ -41,4 +41,10 @@ class MessageController extends Controller
         $this->messageService->messageDelivered($request);
         return response()->json();
     }
+
+    public function markChatAsSeen(Request $request)
+    {
+        $this->messageService->markChatAsSeen($request->chat_id);
+        return response()->json(['status' => 'success']);
+    }
 }

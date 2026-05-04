@@ -22,6 +22,7 @@ Route::middleware('auth')->group(function () {
     Route::post('chat/send', [MessageController::class, 'sendMessage'])->name('sendMessage');
     Route::put('chat/messages/fallback',[MessageController::class, 'fallbackUpdate'])->name('fallback-messages');
     Route::patch('chat/messages/seen',[MessageController::class, 'messageSeen'])->name('seen-message');
+    Route::patch('chat/messages/seen/bulk', [MessageController::class, 'markChatAsSeen'])->name('seen-message-bulk');
     Route::patch('chat/messages/delivered',[MessageController::class, 'messageDelivered'])->name('message-delivered-online');
     Route::get('chat/messages/{friend}', [ChatController::class, 'openChat'])->name('openChat');
 });
