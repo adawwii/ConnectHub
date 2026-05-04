@@ -112,6 +112,8 @@ use Carbon\Traits\Date;
         <div id="messages" class="flex-1 p-4 overflow-y-auto space-y-3">
         </div>
 
+        <div id="typing-indicator" class="px-4 py-1 text-sm text-gray-400 italic hidden">typing...</div>
+
         <!-- Input -->
         <form onsubmit="sendMessage(event)">
         <div class="p-3 bg-white border-t flex gap-2">
@@ -120,6 +122,7 @@ use Carbon\Traits\Date;
                 type="text"
                 class="flex-1 border rounded-lg px-3 py-2"
                 placeholder="Type message..."
+                oninput="handleTyping()"
                 >
                 <button type='submit'  class="bg-blue-500 text-white px-4 rounded-lg">
                     Send
@@ -225,13 +228,10 @@ use Carbon\Traits\Date;
                 messages.messageData.forEach(msg => appendMessageToUI(msg));
             }
 
-            //cleanning up the channel before resubscribing
-            if (activeChatId && activeChatId !== chatId) {
+            if (activeChatId) {
                 Echo.leave(`chat.${activeChatId}`);
-                console.log(' Left previous chat channel:', activeChatId);
             }
 
-            //defining current active chat
             activeChatId = chatId;
 
 
@@ -252,8 +252,10 @@ use Carbon\Traits\Date;
                 }
             })
             .listen('MessageSeen', (e) => {
-                // Update the tick on the sender's message bubble in real-time
                 updateMessageTicks(e.messageId, e.delivered_at, e.seen_at);
+            })
+            .listenForWhisper('typing', (e) => {
+                showTypingIndicator();
             });
             // Scroll to bottom after all messages are rendered
             setTimeout(scrollChatToBottom, 50);
@@ -277,6 +279,30 @@ use Carbon\Traits\Date;
         if (activeEl) {
             activeEl.classList.add('bg-blue-50', 'border-l-4', 'border-blue-500');
         }
+    }
+
+    let typingTimeout = null;
+    let typingIndicatorTimeout = null;
+
+    function handleTyping() {
+        if (!activeChatId) return;
+        if (typingTimeout) return;
+        
+        Echo.private(`chat.${activeChatId}`).whisper('typing', {
+            userId: {{ auth()->id() }}
+        });
+
+        typingTimeout = setTimeout(() => { typingTimeout = null; }, 1000);
+    }
+
+    function showTypingIndicator() {
+        const el = document.getElementById('typing-indicator');
+        el.classList.remove('hidden');
+        
+        if (typingIndicatorTimeout) clearTimeout(typingIndicatorTimeout);
+        typingIndicatorTimeout = setTimeout(() => {
+            el.classList.add('hidden');
+        }, 1500);
     }
 
     function appendMessageToUI(msg) {
