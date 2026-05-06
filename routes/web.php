@@ -19,6 +19,7 @@ Route::middleware('auth')->group(function () {
     Route::get('/notifications', [ContactsController::class, 'notifications'])->name('notifications.index');
     Route::post('/notifications/{id}/accept', [ContactsController::class, 'acceptNotification'])->name('notifications.accept');
     Route::post('/notifications/{id}/reject', [ContactsController::class, 'rejectNotification'])->name('notifications.reject');
+    Route::post('/notifications/read-all',[ContactsController::class, 'markAllAsRead'])->name('notifications.readAll');
     Route::post('chat/send', [MessageController::class, 'sendMessage'])->name('sendMessage');
     Route::put('chat/messages/fallback',[MessageController::class, 'fallbackUpdate'])->name('fallback-messages');
     Route::patch('chat/messages/seen',[MessageController::class, 'messageSeen'])->name('seen-message');

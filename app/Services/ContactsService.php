@@ -62,7 +62,7 @@ class ContactsService
     // Get unread notifications
     public function getUnreadNotifications(User $user)
     {
-        return $user->unreadNotifications;
+        return $user->notifications()->latest()->limit(15)->get();
     }
 
     // Accept Friend Request
@@ -79,6 +79,11 @@ class ContactsService
         if ($contact) {
             // Update status immediately for snappy UI
             $contact->update(['status' => 'accepted']);
+            
+            $data = $notification->data;
+            $data['status'] = 'accepted';
+            $notification->update(['data' => $data]); // Explicit update for JSON column
+
             $notification->markAsRead();
 
             // Dispatch job for the background notification work
@@ -104,10 +109,22 @@ class ContactsService
 
         if ($contact) {
             $contact->delete();
+
+            $data = $notification->data;
+            $data['status'] = 'rejected';
+            $notification->update(['data' => $data]);
+            
             $notification->markAsRead();
             return ['type' => 'success', 'message' => 'Friend request rejected'];
         }
 
         return ['type' => 'failed', 'message' => 'Request not found or already processed'];
+    }
+
+    //notification seen
+    public function markAllAsRead(User $user)
+    {
+        $user->unreadNotifications->markAsRead();
+        return ['status' => 'success'];
     }
 }

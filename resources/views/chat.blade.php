@@ -368,11 +368,18 @@ use Carbon\Traits\Date;
             if (notifications.length === 0) {
                 container.innerHTML = '<div class="p-3 text-sm text-gray-500 text-center">No new notifications.</div>';
             } else {
+                console.log('Loading notifications:', notifications); // DEBUG LOG
                 notifications.forEach(notif => {
+                    let data = notif.data;
+                    if (typeof data === 'string') {
+                        try { data = JSON.parse(data); } catch(e) { data = {}; }
+                    }
+                    
                     addNotificationToUI({
                         id: notif.id,
-                        ...notif.data,
-                        created_at: notif.created_at
+                        ...data,
+                        created_at: notif.created_at,
+                        is_unread: !notif.read_at 
                     });
                 });
             }
@@ -456,24 +463,49 @@ use Carbon\Traits\Date;
         const emptyMsg = container.querySelector('.text-gray-500');
         if (emptyMsg) emptyMsg.remove();
 
+        // 1. Robust data extraction (handles different Laravel/Echo formats)
+        const id = notif.id || 'new';
+        const data = notif.data || notif; // Fallback to root if 'data' object is missing
+        const dataType = data.data_type || notif.data_type;
+        const status = data.status || notif.status;
+        const message = data.message || notif.message || 'New notification';
+        const senderName = data.sender_name || notif.sender_name || 'User';
+        const createdAt = notif.created_at || data.created_at;
+
         const div = document.createElement('div');
-        div.className = `p-3 border-b hover:bg-gray-50 transition-colors ${isNew ? 'bg-blue-50' : ''}`;
-        div.id = `notif-${notif.id || 'new'}`;
+        const isUnread = notif.is_unread || isNew;
+        div.className = `p-3 border-b hover:bg-gray-50 transition-colors ${isUnread ? 'unread bg-blue-50' : ''}`;
+        div.id = `notif-${id}`;
+        div.setAttribute('data-sender', senderName); // Store sender name for handleNotifAction
 
         let actionHtml = '';
-        if (notif.data_type === 'friend_request_received') {
-            actionHtml = `
-                <div class="mt-2 flex gap-2">
-                    <button onclick="handleNotifAction('${notif.id}', 'accept')" class="bg-blue-500 text-white text-xs px-3 py-1 rounded hover:bg-blue-600">Accept</button>
-                    <button onclick="handleNotifAction('${notif.id}', 'reject')" class="bg-gray-200 text-gray-700 text-xs px-3 py-1 rounded hover:bg-gray-300">Reject</button>
-                </div>
-            `;
+        let displayMessage = message;
+        let messageClass = 'text-gray-800';
+
+        // 2. Render based on extracted type and status
+        if (dataType === 'friend_request_received') {
+            if (status === 'accepted') {
+                displayMessage = `${senderName} accepted friend request`;
+                messageClass = 'text-gray-500';
+                actionHtml = '<div class="mt-1 text-xs font-bold text-green-600">✓ Added to friends</div>';
+            } else if (status === 'rejected') {
+                displayMessage = `${senderName} rejected friend request`;
+                messageClass = 'text-gray-500';
+                actionHtml = '<div class="mt-1 text-xs font-bold text-red-600">✕ Request declined</div>';
+            } else {
+                actionHtml = `
+                    <div class="mt-2 flex gap-2 action-buttons">
+                        <button onclick="handleNotifAction('${id}', 'accept')" class="bg-blue-500 text-white text-xs px-3 py-1 rounded hover:bg-blue-600">Accept</button>
+                        <button onclick="handleNotifAction('${id}', 'reject')" class="bg-gray-200 text-gray-700 text-xs px-3 py-1 rounded hover:bg-gray-300">Reject</button>
+                    </div>
+                `;
+            }
         }
 
         div.innerHTML = `
-            <div class="text-sm font-medium text-gray-800">${notif.message}</div>
-            ${actionHtml}
-            <div class="text-xs text-gray-500 mt-1">${notif.created_at ? new Date(notif.created_at).toLocaleString() : 'Just now'}</div>
+            <div class="text-sm font-medium ${messageClass}">${displayMessage}</div>
+            <div class="notif-action-area">${actionHtml}</div>
+            <div class="text-xs text-gray-500 mt-1">${createdAt ? new Date(createdAt).toLocaleString() : 'Just now'}</div>
         `;
 
         if (isNew) {
@@ -558,16 +590,30 @@ use Carbon\Traits\Date;
             const result = await response.json();
 
             if (response.ok) {
-                if (notifElement) notifElement.remove();
-                updateBadgeCount(-1);
+                // 1. Update the main message text using the stored sender name
+                const senderName = notifElement.getAttribute('data-sender') || 'User';
+                const msgText = notifElement.querySelector('.text-sm');
+                if (msgText) {
+                    msgText.innerText = action === 'accept' ? `${senderName} accepted friend request` : `${senderName} rejected friend request`;
+                    msgText.classList.remove('text-gray-800');
+                    msgText.classList.add('text-gray-500');
+                }
+
+                // 2. Update the action area text
+                const actionArea = notifElement.querySelector('.notif-action-area');
+                if (actionArea) {
+                    if (action === 'accept') {
+                        actionArea.innerHTML = '<div class="mt-1 text-xs font-bold text-green-600">✓ Added to friends</div>';
+                    } else {
+                        actionArea.innerHTML = '<div class="mt-1 text-xs font-bold text-red-600">✕ Request declined</div>';
+                    }
+                }
+                
+                notifElement.style.opacity = '1';
+                updateBadgeCount(); 
                 
                 if (action === 'accept' && result.contact) {
                     addContactToSidebar(result.contact);
-                }
-
-                const container = document.getElementById('notificationsContainer');
-                if (container.children.length === 0) {
-                    container.innerHTML = '<div class="p-3 text-sm text-gray-500 text-center">No new notifications.</div>';
                 }
             }
         } catch (error) {
@@ -585,7 +631,7 @@ use Carbon\Traits\Date;
             count += delta;
         } else {
             const container = document.getElementById('notificationsContainer');
-            count = container.querySelectorAll('.border-b').length;
+            count = container.querySelectorAll('.unread').length; // Only count items with 'unread' class
         }
 
         badge.innerText = count;
@@ -597,7 +643,28 @@ use Carbon\Traits\Date;
     }
 
     function toggleNotifications() {
-        document.getElementById('notifDropdown').classList.toggle('hidden');
+        const dropdown = document.getElementById('notifDropdown');
+        const badge = document.getElementById('notifBadge');
+
+        dropdown.classList.toggle('hidden');
+
+        if (!dropdown.classList.contains('hidden') && !badge.classList.contains('hidden')){
+            badge.classList.add('hidden');
+            badge.innerText = "0";
+
+            // Mark all current items as read locally
+            document.querySelectorAll('#notificationsContainer .unread').forEach(el => {
+                el.classList.remove('unread', 'bg-blue-50');
+            });
+
+            fetch("{{ route('notifications.readAll') }}", {
+            method: 'POST',
+            headers: {
+                'X-CSRF-TOKEN': '{{ csrf_token() }}',
+                'Accept': 'application/json'
+            }
+        }).catch(error => console.error('Error marking notifications as read:', error));
+        }
     }
 
     function filterChats(query) {

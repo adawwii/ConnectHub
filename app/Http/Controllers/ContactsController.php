@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Services\ContactsService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 
 class ContactsController extends Controller
 {
@@ -47,6 +48,14 @@ class ContactsController extends Controller
     public function rejectNotification($id)
     {
         $result = $this->contactsService->rejectRequest($id, auth()->user());
+        return response()->json($result);
+    }
+
+    // mark notifications as seen
+    public function markAllAsRead()
+    {
+        $result = $this->contactsService->markAllAsRead(auth()->user());
+
         return response()->json($result);
     }
 }
