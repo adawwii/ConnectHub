@@ -253,7 +253,7 @@ use Carbon\Traits\Date;
             
             container.innerHTML = ''; // Clear loader
             if (messages.messageData.length === 0) {
-                container.innerHTML = '<div class="text-center text-gray-400 py-10 italic">No messages yet. Say hi!</div>';
+                container.innerHTML = '<div id="no-messages-placeholder" class="text-center text-gray-400 py-10 italic">No messages yet. Say hi!</div>';
             } else {
                 messages.messageData.forEach(msg => appendMessageToUI(msg));
             }
@@ -338,6 +338,11 @@ use Carbon\Traits\Date;
 
     function appendMessageToUI(msg) {
         const container = document.getElementById('messages');
+
+        // Remove placeholder if it exists
+        const placeholder = document.getElementById('no-messages-placeholder');
+        if (placeholder) placeholder.remove();
+
         const div = document.createElement('div');
         div.className = `flex ${msg.is_sender ? 'justify-end' : 'justify-start'}`;
 
