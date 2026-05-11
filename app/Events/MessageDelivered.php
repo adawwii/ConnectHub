@@ -28,16 +28,20 @@ class MessageDelivered implements ShouldBroadcast
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('user.'.$this->receiver_id),
+            new PrivateChannel('chat.' . $this->message->chat_id),
+            new PrivateChannel('user.' . $this->message->user_id),
+            new PrivateChannel('user.' . $this->receiver_id),
         ];
     }
 
     public function broadcastWith(): array
     {
         return [
-            'messageId' => $this->message->id,
-            'senderId' => $this->message->user_id,
-            'receiverId' => $this->receiver_id
+            'messageId'    => $this->message->id,
+            'chatId'       => $this->message->chat_id,
+            'senderId'     => $this->message->user_id,
+            'delivered_at' => $this->message->delivered_at?->toIso8601String(),
+            'seen_at'      => $this->message->seen_at?->toIso8601String(),
         ];
     }
 }

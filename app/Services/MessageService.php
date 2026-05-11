@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Events\MessageDelivered;
 use App\Events\MessageSeen as MessageSeenEvent;
 use App\Events\MessageSent;
+use App\Events\SidebarUpdated;
 use App\Models\Chat;
 use App\Models\Message;
 use App\Models\User;
@@ -31,7 +32,10 @@ class MessageService
             'message' => $request->message,
         ]);
 
+        $message->load('chat.users');
+
         event(new MessageSent($message));
+        event(new SidebarUpdated($receiver, $sender->id, $request->message, $chat->id));
         event(new MessageDelivered($message, $receiver));
 
         return $message;

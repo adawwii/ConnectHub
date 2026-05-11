@@ -19,6 +19,7 @@ class MessageSeen implements ShouldBroadcast
     {
         return [
             new PrivateChannel('chat.' . $this->message->chat_id),
+            new PrivateChannel('user.' . $this->message->user_id),
         ];
     }
 
@@ -26,8 +27,10 @@ class MessageSeen implements ShouldBroadcast
     {
         return [
             'messageId'    => $this->message->id,
-            'delivered_at' => $this->message->delivered_at,
-            'seen_at'      => $this->message->seen_at,
+            'chatId'       => $this->message->chat_id,
+            'senderId'     => $this->message->user_id,
+            'delivered_at' => $this->message->delivered_at?->toIso8601String(),
+            'seen_at'      => $this->message->seen_at?->toIso8601String(),
         ];
     }
 }

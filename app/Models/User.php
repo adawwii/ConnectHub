@@ -70,8 +70,17 @@ class User extends Authenticatable
             'receivedContacts.sender'
             ]);
             
-            $sent = $this->sentContacts->where('status', 'accepted')->pluck('receiver');
-            $received = $this->receivedContacts->where('status', 'accepted')->pluck('sender');
+            $sent = $this->sentContacts->where('status', 'accepted')->map(function($contact) {
+                $friend = $contact->receiver;
+                $friend->friendship_created_at = $contact->created_at; 
+                return $friend;
+            });
+            
+            $received = $this->receivedContacts->where('status', 'accepted')->map(function($contact) {
+                 $friend = $contact->sender;
+                 $friend->friendship_created_at = $contact->created_at; 
+                 return $friend;
+                });
             
             return $sent->concat($received);
     }

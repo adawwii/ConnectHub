@@ -91,23 +91,37 @@ use Carbon\Traits\Date;
         <div id="chatList" class="flex-1 overflow-y-auto">
             @foreach ($contacts as $contact )    
             <div id="contact-{{ $contact->id }}" 
+                 data-chat-id="{{ $contact->chat_id }}"
                  onclick="openChat('{{ $contact->id }}', '{{ $contact->name }}', '{{ $contact->formatted_last_seen }}')"
                  class="p-3 border-b cursor-pointer hover:bg-gray-100 chat-item flex items-center justify-between">
-               <div class="flex flex-col">
+               
+               <div class="flex flex-col flex-1 overflow-hidden">
                    <span class="font-medium text-gray-800">{{ $contact->name }}</span>
-                   <span id="status-text-{{ $contact->id }}" 
-                         class="text-xs text-gray-500 last-seen-timer"
-                         data-timestamp="{{ $contact->last_seen_at?->toIso8601String() }}">
-                       {{ $contact->formatted_last_seen }}
-                   </span>
+                   
+                   <!-- Last Message Preview -->
+                   <div class="flex items-center gap-1">
+                       <span id="last-msg-ticks-{{ $contact->id }}" class="text-[10px] leading-none">
+                            @if($contact->last_message_sender_id == auth()->id())
+                                {!! $contact->last_message_status['seen'] ? '<span class="text-green-500">✓✓</span>' : ($contact->last_message_status['delivered'] ? '<span class="text-gray-400">✓✓</span>' : '✓') !!}
+                            @endif
+                       </span>
+                       <span id="last-msg-text-{{ $contact->id }}" class="text-xs text-gray-400 truncate">
+                           {{ $contact->last_message ?? 'No messages yet' }}
+                       </span>
+                   </div>
                </div>
 
-               <!-- Status Dot -->
-                <div 
-                id="status-dot-{{ $contact->id }}"
-                class="w-3 h-3 rounded-full bg-gray-400 transition-colors duration-300" 
-                title="offline">
-                </div>
+               <!-- Status & Date -->
+               <div class="flex flex-col items-end gap-1">
+                    <div 
+                    id="status-dot-{{ $contact->id }}"
+                    class="w-3 h-3 rounded-full bg-gray-400 transition-colors duration-300" 
+                    title="offline">
+                    </div>
+                    <span id="status-text-{{ $contact->id }}" class="text-[10px] text-gray-400 whitespace-nowrap last-seen-timer" data-timestamp="{{ $contact->last_seen_at?->toIso8601String() }}">
+                        {{ $contact->formatted_last_seen }}
+                    </span>
+               </div>
             </div>
             @endforeach
 
@@ -166,14 +180,11 @@ use Carbon\Traits\Date;
         receiveFallbackMessages();
 
         Echo.private('user.{{ auth()->id() }}')
-            .subscribed(() => {
-                console.log('Subscribed to user.{{ auth()->id()}} channel');
-            })
+            .subscribed(() => {})
             .error((error) => {
                 console.error('Subscription error:', error);
             })
             .notification((notification) => {
-                console.log('New notification:', notification);
                 addNotificationToUI(notification, true);
 
                 // If friend request was accepted, add the new friend to the sidebar
@@ -185,12 +196,24 @@ use Carbon\Traits\Date;
                 }
             })
             .listen('MessageDelivered', (e) => {
-                messageDeliveredSuccess(e);
+                const myId = {{ auth()->id() }};
+                if (e.senderId != myId) {
+                    // I'm the RECEIVER — confirm delivery to server
+                    messageDeliveredSuccess(e);
+                } else {
+                    // I'm the SENDER — update my sidebar ticks
+                    updateMessageTicks(e.messageId, e.delivered_at, e.seen_at, e.chatId, e.senderId);
+                }
+            })
+            .listen('MessageSeen', (e) => {
+                updateMessageTicks(e.messageId, e.delivered_at, e.seen_at, e.chatId, e.senderId);
+            })
+            .listen('.SidebarUpdated', (e) => {
+                moveContactToTop(e.senderId, e.messageText, false, e.chatId);
             });
         
         Echo.join('user-status.{{auth()->id() }}')
-            .here((users) =>
-            console.log('you are online'))
+            .here((users) => {})
             .error((error) =>
             console.error('status channel error:', error));
         
@@ -247,7 +270,6 @@ use Carbon\Traits\Date;
         try {
             const response = await fetch(`/chat/messages/${id}`,{credentials: 'same-origin'});
             const messages = await response.json();
-            console.log(messages.messageData);
             const chatId=messages.chat_id;
 
             
@@ -271,9 +293,7 @@ use Carbon\Traits\Date;
             }
 
             Echo.private(`chat.${chatId}`)
-            .subscribed(() => {
-                console.log('Subscribed to chat:', chatId);
-            })
+            .subscribed(() => {})
             .listen('MessageSent', (e) => {
                 if (e.senderId !== {{ auth()->id() }}) {
                     appendMessageToUI(e.messageData);
@@ -282,7 +302,7 @@ use Carbon\Traits\Date;
                 }
             })
             .listen('MessageSeen', (e) => {
-                updateMessageTicks(e.messageId, e.delivered_at, e.seen_at);
+                updateMessageTicks(e.messageId, e.delivered_at, e.seen_at, e.chatId || null, e.senderId || null);
             })
             .listenForWhisper('typing', (e) => {
                 showTypingIndicator();
@@ -369,11 +389,40 @@ use Carbon\Traits\Date;
     }
 
     // Updates the tick indicator on a specific message bubble (called on MessageSeen broadcast)
-    function updateMessageTicks(messageId, delivered_at, seen_at) {
-        const bubble = document.getElementById(`msg-${messageId}`);
-        if (!bubble) return;
-        const tickSpan = bubble.querySelector('.tick-status');
-        if (tickSpan) tickSpan.innerHTML = getTicksHtml(delivered_at, seen_at);
+    function updateMessageTicks(messageId, deliveredAt, seenAt, chatId = null, senderId = null) {
+        const myId = {{ auth()->id() }};
+
+        // 1. Update the chat bubble if it's currently on screen
+        const msgBubble = document.getElementById(`msg-${messageId}`);
+        if (msgBubble) {
+            const ticksContainer = msgBubble.querySelector('.tick-status');
+            if (ticksContainer) {
+                ticksContainer.innerHTML = getTicksHtml(deliveredAt, seenAt);
+            }
+        }
+        
+        // 2. Update the sidebar ticks — ONLY if I am the sender of this message
+        if (senderId && senderId == myId) {
+            let targetContactId = null;
+
+            if (chatId) {
+                const contactItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+                if (contactItem) targetContactId = contactItem.id.split('-')[1];
+            } else if (activeContactId) {
+                targetContactId = activeContactId;
+            }
+
+            if (targetContactId) {
+                updateSidebarTicks(targetContactId, deliveredAt, seenAt);
+            }
+        }
+    }
+
+    function updateSidebarTicks(contactId, deliveredAt, seenAt) {
+        const ticksSpan = document.getElementById(`last-msg-ticks-${contactId}`);
+        if (ticksSpan) {
+            ticksSpan.innerHTML = getTicksHtml(deliveredAt, seenAt);
+        }
     }
 
     function scrollChatToBottom() {
@@ -396,7 +445,6 @@ use Carbon\Traits\Date;
             if (notifications.length === 0) {
                 container.innerHTML = '<div class="p-3 text-sm text-gray-500 text-center">No new notifications.</div>';
             } else {
-                console.log('Loading notifications:', notifications); // DEBUG LOG
                 notifications.forEach(notif => {
                     let data = notif.data;
                     if (typeof data === 'string') {
@@ -427,9 +475,7 @@ use Carbon\Traits\Date;
             },
         })
         .then(response => response.json())
-        .then(data => {
-            console.log('received fall back messages');
-        })
+        .then(data => {})
         .catch(error => {
             console.error('Error:', error);
         });
@@ -446,8 +492,6 @@ use Carbon\Traits\Date;
             body: JSON.stringify({ userId: e.senderId, messageId: e.messageId })
         })
         .then(response => response.json())
-        .then(data => {
-        })
         .catch(error => {
             console.error('Error:', error);
         });
@@ -802,8 +846,46 @@ use Carbon\Traits\Date;
             if (tempBubble && saved.id) {
                 tempBubble.id = `msg-${saved.id}`;
             }
+
+            // Move to top and update sidebar ticks
+            moveContactToTop(activeContactId, msgText, true, activeChatId);
         } catch (error) {
             console.log('Error sending message:', error);
+        }
+    }
+
+    function moveContactToTop(senderId, message, isSender, chatId = null) {
+        const chatList = document.getElementById('chatList');
+        
+        // Find contact item by chatId (best) or senderId (fallback)
+        let contactItem = null;
+        if (chatId) {
+            contactItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+        }
+        
+        if (!contactItem) {
+            contactItem = document.getElementById(`contact-${senderId}`);
+        }
+        
+        if (contactItem) {
+            const contactId = contactItem.id.split('-')[1];
+            const textPreview = document.getElementById(`last-msg-text-${contactId}`);
+            const ticksSpan = document.getElementById(`last-msg-ticks-${contactId}`);
+            
+            // Update preview text
+            if (textPreview) textPreview.innerText = message;
+            
+            // Update ticks: show single tick if WE sent it, clear it if THEY sent it
+            if (ticksSpan) {
+                ticksSpan.innerHTML = isSender ? '<span style="color:#e2e8f0" title="Sent">✓</span>' : '';
+            }
+
+            // Move to top
+            chatList.prepend(contactItem);
+            
+            // Subtle flash effect
+            contactItem.classList.add('bg-blue-50');
+            setTimeout(() => contactItem.classList.remove('bg-blue-50'), 2000);
         }
     }
 

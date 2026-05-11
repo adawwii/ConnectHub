@@ -17,10 +17,10 @@ class ChatController extends Controller
         $this->chatService = $chatService;
     }
     //
-    public function index(){
-        $user=auth()->user();
-        $contacts=$user->friends;
-        // dd($contacts);
+    public function index()
+    {
+        $contacts = $this->chatService->index();
+        
         return view('chat',compact('contacts'));
     }
     // retrive or create chat data 
