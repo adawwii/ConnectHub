@@ -12,6 +12,10 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        //registering the userActivity middleware
+        $middleware->web(append: [
+            \App\Http\Middleware\UserActivity::class
+        ]);
         //redirecting unAuthenticated users
         $middleware->redirectTo(
             guests: '/user/register',

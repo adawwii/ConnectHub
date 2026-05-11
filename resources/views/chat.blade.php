@@ -91,9 +91,16 @@ use Carbon\Traits\Date;
         <div id="chatList" class="flex-1 overflow-y-auto">
             @foreach ($contacts as $contact )    
             <div id="contact-{{ $contact->id }}" 
-                 onclick="openChat('{{ $contact->id }}', '{{ $contact->name }}')"
+                 onclick="openChat('{{ $contact->id }}', '{{ $contact->name }}', '{{ $contact->formatted_last_seen }}')"
                  class="p-3 border-b cursor-pointer hover:bg-gray-100 chat-item flex items-center justify-between">
-               <span>{{ $contact->name }}</span>
+               <div class="flex flex-col">
+                   <span class="font-medium text-gray-800">{{ $contact->name }}</span>
+                   <span id="status-text-{{ $contact->id }}" 
+                         class="text-xs text-gray-500 last-seen-timer"
+                         data-timestamp="{{ $contact->last_seen_at?->toIso8601String() }}">
+                       {{ $contact->formatted_last_seen }}
+                   </span>
+               </div>
 
                <!-- Status Dot -->
                 <div 
@@ -116,7 +123,10 @@ use Carbon\Traits\Date;
         <!-- Header -->
         <div id="chatHeader" class="p-4 bg-white border-b font-semibold text-gray-700 flex items-center gap-2">
             <button id="backBtn" onclick="showSidebar()" class="md:hidden text-blue-500 mr-1">← </button>
-            <span id="chatTitle">Select a contact to start chatting</span>
+            <div class="flex flex-col">
+                <span id="chatTitle">Select a contact to start chatting</span>
+                <span id="header-status-text" class="text-xs font-normal text-gray-400"></span>
+            </div>
             <div id="header-status-dot" class="w-3 h-3 rounded-full bg-gray-400 hidden"></div>
         </div>
 
@@ -199,21 +209,34 @@ use Carbon\Traits\Date;
                     if (user.id == id) updateStatusUI(id, false);
                 });
         });
+
+        // Initialize the live status timer
+        if (typeof window.startStatusTimer === 'function') {
+            window.startStatusTimer();
+        }
     });
         
 
     // Open a chat and fetch history
-    async function openChat(id, name) {
+    async function openChat(id, name, lastSeen) {
         activeContactId = id;
         
         // UI Updates
         document.getElementById('chatTitle').innerText = name;
         const headerDot = document.getElementById('header-status-dot');
+        const headerText = document.getElementById('header-status-text');
         headerDot.classList.remove('hidden');
         
         const sidebarDot = document.getElementById(`status-dot-${id}`);
+        const sidebarText = document.getElementById(`status-text-${id}`);
+        
         if (sidebarDot) {
             headerDot.className = sidebarDot.className;
+        }
+
+        if (headerText && sidebarText) {
+            headerText.innerText = sidebarText.innerText;
+            headerText.className = sidebarText.className + " text-xs font-normal";
         }
 
         highlightContact(id);
@@ -518,14 +541,48 @@ use Carbon\Traits\Date;
 
     function updateStatusUI(userId, isOnline) {
         const sidebarDot = document.getElementById(`status-dot-${userId}`);
+        const sidebarText = document.getElementById(`status-text-${userId}`);
+        
         if (sidebarDot) {
             setDotStatus(sidebarDot, isOnline);
         }
 
+        if (sidebarText) {
+            if (isOnline) {
+                sidebarText.innerText = 'Online';
+                sidebarText.classList.add('text-green-500');
+                sidebarText.classList.remove('text-gray-500');
+            } else if (sidebarText.innerText === 'Online') {
+                // User just left: update timestamp to now and set text
+                sidebarText.dataset.timestamp = new Date().toISOString();
+                sidebarText.innerText = typeof window.formatTimeAgo === 'function' 
+                    ? window.formatTimeAgo(sidebarText.dataset.timestamp) 
+                    : 'Just now';
+                
+                sidebarText.classList.remove('text-green-500');
+                sidebarText.classList.add('text-gray-500');
+            }
+        }
+
         if (activeContactId == userId) {
             const headerDot = document.getElementById('header-status-dot');
+            const headerText = document.getElementById('header-status-text');
+            
             if (headerDot) {
                 setDotStatus(headerDot, isOnline);
+            }
+            if (headerText) {
+                if (isOnline) {
+                    headerText.innerText = 'Online';
+                    headerText.classList.add('text-green-500');
+                    headerText.classList.remove('text-gray-400');
+                } else if (headerText.innerText === 'Online') {
+                    headerText.innerText = typeof window.formatTimeAgo === 'function' 
+                        ? window.formatTimeAgo(new Date().toISOString()) 
+                        : 'Just now';
+                    headerText.classList.remove('text-green-500');
+                    headerText.classList.add('text-gray-400');
+                }
             }
         }
     }
