@@ -41,8 +41,9 @@ class MessageSent implements ShouldBroadcast
                 'messageId'    => $this->message->id,
                 'message'      => $this->message->message,
                 'is_sender'    => false,
-                'delivered_at' => $this->message->delivered_at,
-                'seen_at'      => $this->message->seen_at,
+                'delivered_at' => $this->message->delivered_at?->toIso8601String(),
+                'seen_at'      => $this->message->seen_at?->toIso8601String(),
+                'created_at'   => $this->message->created_at?->toIso8601String(),
             ]
         ];
     }

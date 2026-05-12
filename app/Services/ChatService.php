@@ -75,8 +75,9 @@ class ChatService
             'messageId'    => $singleMessage->id,
             'is_sender'    => $singleMessage->user_id === $onlineUser->id,
             'message'      => $singleMessage->message,
-            'delivered_at' => $singleMessage->delivered_at,
-            'seen_at'      => $singleMessage->seen_at,
+            'delivered_at' => $singleMessage->delivered_at?->toIso8601String(),
+            'seen_at'      => $singleMessage->seen_at?->toIso8601String(),
+            'created_at'   => $singleMessage->created_at?->toIso8601String(),
         ];
     })];
         }

@@ -55,7 +55,7 @@ class MessageService
                 });
             })
             ->whereNull('delivered_at')
-            ->update(['delivered_at' => now()]);
+            ->update(['delivered_at' => DB::raw('COALESCE(seen_at, NOW())')]);
 
         return;
     }
@@ -66,8 +66,8 @@ class MessageService
             ->where('id', $request->message)
             ->where('user_id', '!=', auth()->id())
             ->update([
-                'delivered_at' => DB::raw('COALESCE(delivered_at, NOW())'),
-                'seen_at'      => DB::raw('COALESCE(seen_at, NOW())'),
+                'delivered_at' => DB::raw('COALESCE(delivered_at, "' . now() . '")'),
+                'seen_at'      => DB::raw('COALESCE(seen_at, "' . now() . '")'),
             ]);
 
         if ($updated) {
@@ -82,13 +82,14 @@ class MessageService
     {
         $updated = $this->message
             ->where('id', $request->messageId)
+            ->whereNull('delivered_at') 
             ->update([
-                'delivered_at' => DB::raw('COALESCE(delivered_at, NOW())'),
+                'delivered_at' => DB::raw('COALESCE(delivered_at, "' . now() . '")'),
             ]);
 
         if ($updated) {
             $message = $this->message->find($request->messageId);
-            event(new MessageSeenEvent($message));
+            event(new MessageDelivered($message, $request->userId ?? 0));
         }
 
         return;
@@ -109,7 +110,7 @@ class MessageService
             $this->message
                 ->whereIn('id', $unread->pluck('id'))
                 ->update([
-                    'delivered_at' => DB::raw('COALESCE(delivered_at, NOW())'),
+                    'delivered_at' => DB::raw('COALESCE(delivered_at, "' . now() . '")'),
                     'seen_at'      => $now,
                 ]);
 

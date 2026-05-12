@@ -10,7 +10,30 @@ use Carbon\Traits\Date;
     <title>Chat</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
+    <meta name="server-time" content="{{ now()->toIso8601String() }}">
     @vite(['resources/js/app.js'])
+    <style>
+        .message-details {
+            max-height: 0;
+            overflow: hidden;
+            transition: all 0.3s ease-in-out;
+            opacity: 0;
+            font-size: 0.7rem;
+            line-height: 1rem;
+        }
+        .message-details.show {
+            max-height: 50px;
+            opacity: 1;
+            margin-top: 4px;
+        }
+        .message-bubble {
+            cursor: pointer;
+            transition: transform 0.1s ease;
+        }
+        .message-bubble:active {
+            transform: scale(0.98);
+        }
+    </style>
 </head>
 <body class="bg-gray-100 h-screen flex flex-col">
 <!-- Top Navbar -->
@@ -184,6 +207,7 @@ use Carbon\Traits\Date;
     window.addEventListener('DOMContentLoaded', () => {
         loadNotifications();
         receiveFallbackMessages();
+        if (window.startStatusTimer) window.startStatusTimer();
 
         Echo.private('user.{{ auth()->id() }}')
             .subscribed(() => {})
@@ -344,6 +368,8 @@ use Carbon\Traits\Date;
         }
     }
 
+
+
     function highlightContact(id) {
         document.querySelectorAll('.chat-item').forEach(el => {
             el.classList.remove('bg-blue-50', 'border-l-4', 'border-blue-500');
@@ -386,21 +412,45 @@ use Carbon\Traits\Date;
         if (placeholder) placeholder.remove();
 
         const div = document.createElement('div');
-        div.className = `flex ${msg.is_sender ? 'justify-end' : 'justify-start'}`;
+        div.className = `flex flex-col ${msg.is_sender ? 'items-end' : 'items-start'}`;
 
         // Only include the tick status container if it's a message WE sent
         const statusHtml = msg.is_sender 
-            ? `<span class="tick-status block text-right text-xs mt-1 leading-none">${getTicksHtml(msg.delivered_at, msg.seen_at)}</span>` 
+            ? `<span class="tick-status block text-right text-[10px] mt-0.5 leading-none opacity-80">${getTicksHtml(msg.delivered_at, msg.seen_at)}</span>` 
             : '';
 
+        const detailsHtml = msg.is_sender 
+            ? `<div id="details-${msg.messageId}" class="message-details text-gray-500 pr-2 text-right">
+                <div class="delivered-at message-time-live" data-timestamp="${msg.delivered_at || ''}" data-prefix="Delivered at: ">
+                    Delivered at: ${msg.delivered_at ? window.formatMessageTime(msg.delivered_at) : 'Pending...'}
+                </div>
+                <div class="seen-at message-time-live" data-timestamp="${msg.seen_at || ''}" data-prefix="Seen at: ">
+                    Seen at: ${msg.seen_at ? window.formatMessageTime(msg.seen_at) : 'Unread'}
+                </div>
+               </div>`
+            : `<div id="details-${msg.messageId}" class="message-details text-gray-500 pl-2 text-left">
+                <div class="message-time-live" data-timestamp="${msg.created_at || new Date().toISOString()}" data-prefix="Received at: ">
+                    Received at: ${window.formatMessageTime(msg.created_at || new Date().toISOString())}
+                </div>
+               </div>`;
+
         div.innerHTML = `
-            <div id="msg-${msg.messageId}" class="${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
+            <div id="msg-${msg.messageId}" 
+                 onclick="toggleMessageDetails('${msg.messageId}')"
+                 class="message-bubble ${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
                 <span>${msg.message}</span>
                 ${statusHtml}
             </div>
+            ${detailsHtml}
         `;
         container.appendChild(div);
-        
+    }
+
+    function toggleMessageDetails(messageId) {
+        const details = document.getElementById(`details-${messageId}`);
+        if (details) {
+            details.classList.toggle('show');
+        }
     }
 
     // Returns tick HTML based on delivered_at / seen_at timestamps
@@ -416,10 +466,29 @@ use Carbon\Traits\Date;
 
         // 1. Update the chat bubble if it's currently on screen
         const msgBubble = document.getElementById(`msg-${messageId}`);
+        const details = document.getElementById(`details-${messageId}`);
+
         if (msgBubble) {
             const ticksContainer = msgBubble.querySelector('.tick-status');
             if (ticksContainer) {
                 ticksContainer.innerHTML = getTicksHtml(deliveredAt, seenAt);
+            }
+        }
+
+        if (details) {
+            if (deliveredAt) {
+                const delEl = details.querySelector('.delivered-at');
+                if (delEl) {
+                    delEl.dataset.timestamp = deliveredAt;
+                    delEl.innerText = `Delivered at: ${window.formatMessageTime(deliveredAt)}`;
+                }
+            }
+            if (seenAt) {
+                const seenEl = details.querySelector('.seen-at');
+                if (seenEl) {
+                    seenEl.dataset.timestamp = seenAt;
+                    seenEl.innerText = `Seen at: ${window.formatMessageTime(seenAt)}`;
+                }
             }
         }
         

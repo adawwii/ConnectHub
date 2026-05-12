@@ -1,5 +1,6 @@
 import './bootstrap';
-import { formatTimeAgo, startStatusTimer } from './status-tracker';
+import { formatTimeAgo, startStatusTimer, formatMessageTime } from './status-tracker';
 
 window.formatTimeAgo = formatTimeAgo;
+window.formatMessageTime = formatMessageTime;
 window.startStatusTimer = startStatusTimer;
