@@ -19,7 +19,8 @@ class SidebarUpdated implements ShouldBroadcast
         public $receiverId,
         public $senderId,
         public $messageText,
-        public $chatId
+        public $chatId,
+        public $unreadCount = 0
     ) {}
 
     /**
@@ -32,11 +33,19 @@ class SidebarUpdated implements ShouldBroadcast
         ];
     }
 
-    /**
-     * The event's broadcast name.
-     */
     public function broadcastAs(): string
     {
         return 'SidebarUpdated';
+    }
+
+    public function broadcastWith(): array
+    {
+        return [
+            'receiverId'   => $this->receiverId,
+            'senderId'     => $this->senderId,
+            'messageText'  => $this->messageText,
+            'chatId'       => $this->chatId,
+            'unreadCount'  => $this->unreadCount,
+        ];
     }
 }

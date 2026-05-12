@@ -95,21 +95,27 @@ use Carbon\Traits\Date;
                  onclick="openChat('{{ $contact->id }}', '{{ $contact->name }}', '{{ $contact->formatted_last_seen }}')"
                  class="p-3 border-b cursor-pointer hover:bg-gray-100 chat-item flex items-center justify-between">
                
-               <div class="flex flex-col flex-1 overflow-hidden">
-                   <span class="font-medium text-gray-800">{{ $contact->name }}</span>
-                   
-                   <!-- Last Message Preview -->
-                   <div class="flex items-center gap-1">
-                       <span id="last-msg-ticks-{{ $contact->id }}" class="text-[10px] leading-none">
-                            @if($contact->last_message_sender_id == auth()->id())
-                                {!! $contact->last_message_status['seen'] ? '<span class="text-green-500">✓✓</span>' : ($contact->last_message_status['delivered'] ? '<span class="text-gray-400">✓✓</span>' : '✓') !!}
+                <div class="flex flex-col flex-1 overflow-hidden">
+                    <span id="contact-name-{{ $contact->id }}" class="{{ ($contact->unread_count ?? 0) > 0 ? 'font-bold text-gray-900' : 'font-medium text-gray-800' }}">
+                        {{ $contact->name }}
+                    </span>
+                    
+                    <!-- Last Message Preview -->
+                    <div class="flex items-center gap-1">
+                        <span id="last-msg-ticks-{{ $contact->id }}" class="text-[10px] leading-none">
+                             @if($contact->last_message_sender_id == auth()->id())
+                                 {!! $contact->last_message_status['seen'] ? '<span class="text-green-500">✓✓</span>' : ($contact->last_message_status['delivered'] ? '<span class="text-gray-400">✓✓</span>' : '✓') !!}
+                             @endif
+                        </span>
+                        <span id="last-msg-text-{{ $contact->id }}" class="text-xs truncate {{ ($contact->unread_count ?? 0) > 0 ? 'font-bold text-blue-600' : 'text-gray-400' }}">
+                            @if(($contact->unread_count ?? 0) > 1)
+                                {{ $contact->unread_count }} new messages
+                            @else
+                                {{ $contact->last_message ?? 'No messages yet' }}
                             @endif
-                       </span>
-                       <span id="last-msg-text-{{ $contact->id }}" class="text-xs text-gray-400 truncate">
-                           {{ $contact->last_message ?? 'No messages yet' }}
-                       </span>
-                   </div>
-               </div>
+                        </span>
+                    </div>
+                </div>
 
                <!-- Status & Date -->
                <div class="flex flex-col items-end gap-1">
@@ -209,7 +215,7 @@ use Carbon\Traits\Date;
                 updateMessageTicks(e.messageId, e.delivered_at, e.seen_at, e.chatId, e.senderId);
             })
             .listen('.SidebarUpdated', (e) => {
-                moveContactToTop(e.senderId, e.messageText, false, e.chatId);
+                moveContactToTop(e.senderId, e.messageText, false, e.chatId, e.unreadCount);
             });
         
         Echo.join('user-status.{{auth()->id() }}')
@@ -287,9 +293,25 @@ use Carbon\Traits\Date;
             activeChatId = chatId;
 
 
-            // Mark entire chat as seen in one request
             if (messages.messageData.length > 0) {
                 markChatAsSeen(chatId);
+                
+                // Reset font weights and preview text
+                const nameEl = document.getElementById(`contact-name-${id}`);
+                const textEl = document.getElementById(`last-msg-text-${id}`);
+                
+                if (nameEl) {
+                    nameEl.classList.remove('font-bold', 'text-gray-900');
+                    nameEl.classList.add('font-medium', 'text-gray-800');
+                }
+                if (textEl) {
+                    textEl.classList.remove('font-bold', 'text-blue-600');
+                    textEl.classList.add('text-gray-400');
+                    // Restore actual message text if it was showing "X new messages"
+                    if (messages.messageData.length > 0) {
+                        textEl.innerText = messages.messageData[messages.messageData.length - 1].message;
+                    }
+                }
             }
 
             Echo.private(`chat.${chatId}`)
@@ -848,13 +870,13 @@ use Carbon\Traits\Date;
             }
 
             // Move to top and update sidebar ticks
-            moveContactToTop(activeContactId, msgText, true, activeChatId);
+            moveContactToTop(activeContactId, msgText, true, activeChatId, 0);
         } catch (error) {
             console.log('Error sending message:', error);
         }
     }
 
-    function moveContactToTop(senderId, message, isSender, chatId = null) {
+    function moveContactToTop(senderId, message, isSender, chatId = null, unreadCount = 0) {
         const chatList = document.getElementById('chatList');
         
         // Find contact item by chatId (best) or senderId (fallback)
@@ -869,11 +891,35 @@ use Carbon\Traits\Date;
         
         if (contactItem) {
             const contactId = contactItem.id.split('-')[1];
+            const nameEl = document.getElementById(`contact-name-${contactId}`);
             const textPreview = document.getElementById(`last-msg-text-${contactId}`);
             const ticksSpan = document.getElementById(`last-msg-ticks-${contactId}`);
             
-            // Update preview text
-            if (textPreview) textPreview.innerText = message;
+            // Update preview text and bolding
+            if (textPreview) {
+                if (unreadCount > 1 && !isSender && activeContactId != contactId) {
+                    textPreview.innerText = `${unreadCount} new messages`;
+                } else {
+                    textPreview.innerText = message;
+                }
+
+                // Handle Bolding
+                if (unreadCount > 0 && !isSender && activeContactId != contactId) {
+                    textPreview.classList.add('font-bold', 'text-blue-600');
+                    textPreview.classList.remove('text-gray-400');
+                    if (nameEl) {
+                        nameEl.classList.add('font-bold', 'text-gray-900');
+                        nameEl.classList.remove('font-medium', 'text-gray-800');
+                    }
+                } else {
+                    textPreview.classList.remove('font-bold', 'text-blue-600');
+                    textPreview.classList.add('text-gray-400');
+                    if (nameEl) {
+                        nameEl.classList.remove('font-bold', 'text-gray-900');
+                        nameEl.classList.add('font-medium', 'text-gray-800');
+                    }
+                }
+            }
             
             // Update ticks: show single tick if WE sent it, clear it if THEY sent it
             if (ticksSpan) {

@@ -34,8 +34,13 @@ class MessageService
 
         $message->load('chat.users');
 
+        $unreadCount = $chat->messages()
+            ->where('user_id', $sender->id)
+            ->whereNull('seen_at')
+            ->count();
+
         event(new MessageSent($message));
-        event(new SidebarUpdated($receiver, $sender->id, $request->message, $chat->id));
+        event(new SidebarUpdated($receiver, $sender->id, $request->message, $chat->id, $unreadCount));
         event(new MessageDelivered($message, $receiver));
 
         return $message;

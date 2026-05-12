@@ -41,6 +41,11 @@ class ChatService
                     'seen' => $lastMsg?->seen_at,
                 ];
                 $friend->last_activity = $lastMsg ? $lastMsg->created_at : $friend->friendship_created_at;
+                
+                $friend->unread_count = $chat->messages()
+                    ->where('user_id', $friend->id)
+                    ->whereNull('seen_at')
+                    ->count();
             } else {
                 
                 $friend->last_message = null;
