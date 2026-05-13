@@ -1,7 +1,3 @@
-@php
-    
-use Carbon\Traits\Date;
-@endphp
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -44,7 +40,7 @@ use Carbon\Traits\Date;
     <div class="flex items-center gap-4">
         <!-- Notifications -->
         <div class="relative">
-            <button onclick="toggleNotifications()" class="relative">
+            <button onclick="toggleNotificationsWrapper()" class="relative">
                 🔔
                 {{-- using websockets for notification --}}
                 <span id="notifBadge" class="absolute -top-1 -right-2 bg-red-500 text-white text-xs px-1 rounded-full {{ auth()->user()->unreadNotifications->count() == 0 ? 'hidden' : '' }}">
@@ -137,11 +133,15 @@ use Carbon\Traits\Date;
                                 {{ $contact->last_message ?? 'No messages yet' }}
                             @endif
                         </span>
+                        <span id="sidebar-typing-{{ $contact->id }}" class="text-xs italic text-blue-500 hidden animate-pulse">typing...</span>
                     </div>
                 </div>
 
                <!-- Status & Date -->
-               <div class="flex flex-col items-end gap-1">
+                <div class="flex flex-col items-end gap-1">
+                    <span id="last-msg-time-{{ $contact->id }}" class="text-[10px] text-gray-400 whitespace-nowrap message-time-live" data-timestamp="{{ $contact->last_message_at?->toIso8601String() }}">
+                        {{ $contact->formatted_last_message_at }}
+                    </span>
                     <div 
                     id="status-dot-{{ $contact->id }}"
                     class="w-3 h-3 rounded-full bg-gray-400 transition-colors duration-300" 
@@ -205,8 +205,19 @@ use Carbon\Traits\Date;
     let activeChatId = null;
 
     window.addEventListener('DOMContentLoaded', () => {
-        loadNotifications();
-        receiveFallbackMessages();
+        // Initialize modular systems
+        if (window.loadNotifications) {
+            window.loadNotifications(
+                "{{ route('notifications.index') }}", 
+                window.addNotificationToUI, 
+                window.updateBadgeCount
+            );
+        }
+
+        if (window.receiveFallbackMessages) {
+            window.receiveFallbackMessages("{{ route('fallback-messages') }}", '{{ csrf_token() }}');
+        }
+
         if (window.startStatusTimer) window.startStatusTimer();
 
         Echo.private('user.{{ auth()->id() }}')
@@ -215,7 +226,7 @@ use Carbon\Traits\Date;
                 console.error('Subscription error:', error);
             })
             .notification((notification) => {
-                addNotificationToUI(notification, true);
+                window.addNotificationToUI(notification, true, window.updateBadgeCount);
 
                 // If friend request was accepted, add the new friend to the sidebar
                 if (notification.data_type === 'friend_request_accepted') {
@@ -229,14 +240,16 @@ use Carbon\Traits\Date;
                 const myId = {{ auth()->id() }};
                 if (e.senderId != myId) {
                     // I'm the RECEIVER — confirm delivery to server
-                    messageDeliveredSuccess(e);
+                    window.messageDeliveredSuccess(e.senderId, e.messageId, '{{ csrf_token() }}', "{{ route('message-delivered-online') }}");
                 } else {
                     // I'm the SENDER — update my sidebar ticks
-                    updateMessageTicks(e.messageId, e.delivered_at, e.seen_at, e.chatId, e.senderId);
+                    window.updateMessageTicks(e.messageId, e.delivered_at, e.seen_at, myId, e.chatId, activeContactId, window.updateSidebarTicks);
                 }
             })
             .listen('MessageSeen', (e) => {
-                updateMessageTicks(e.messageId, e.delivered_at, e.seen_at, e.chatId, e.senderId);
+                if (e.senderId == {{ auth()->id() }}) {
+                    window.updateMessageTicks(e.messageId, e.delivered_at, e.seen_at, {{ auth()->id() }}, e.chatId, activeContactId, window.updateSidebarTicks);
+                }
             })
             .listen('.SidebarUpdated', (e) => {
                 moveContactToTop(e.senderId, e.messageText, false, e.chatId, e.unreadCount);
@@ -245,7 +258,10 @@ use Carbon\Traits\Date;
         Echo.join('user-status.{{auth()->id() }}')
             .here((users) => {})
             .error((error) =>
-            console.error('status channel error:', error));
+            console.error('status channel error:', error))
+            .listenForWhisper('typing', (e) => {
+                showSidebarTyping(e.userId);
+            });
         
         const contactIds = @json($contacts->pluck('id'));
 
@@ -253,13 +269,13 @@ use Carbon\Traits\Date;
             Echo.join(`user-status.${id}`)
                 .here((users) => {
                     const isFriendOnline = users.some(u => u.id == id);
-                    updateStatusUI(id, isFriendOnline);  
+                    window.updateStatusUI(id, isFriendOnline, activeContactId);  
                 })
                 .joining((user) => {
-                    if (user.id == id) updateStatusUI(id, true);
+                    if (user.id == id) window.updateStatusUI(id, true, activeContactId);
                 })
                 .leaving((user) => {
-                    if (user.id == id) updateStatusUI(id, false);
+                    if (user.id == id) window.updateStatusUI(id, false, activeContactId);
                 });
         });
 
@@ -292,7 +308,7 @@ use Carbon\Traits\Date;
             headerText.className = sidebarText.className + " text-xs font-normal";
         }
 
-        highlightContact(id);
+        window.highlightContact(id);
 
         const container = document.getElementById('messages');
         container.innerHTML = '<div class="text-center text-gray-400 py-10 italic">Loading conversation...</div>';
@@ -307,7 +323,7 @@ use Carbon\Traits\Date;
             if (messages.messageData.length === 0) {
                 container.innerHTML = '<div id="no-messages-placeholder" class="text-center text-gray-400 py-10 italic">No messages yet. Say hi!</div>';
             } else {
-                messages.messageData.forEach(msg => appendMessageToUI(msg));
+                messages.messageData.forEach(msg => window.appendMessageToUI(msg, {{ auth()->id() }}, window.formatMessageTime));
             }
 
             if (activeChatId) {
@@ -318,7 +334,7 @@ use Carbon\Traits\Date;
 
 
             if (messages.messageData.length > 0) {
-                markChatAsSeen(chatId);
+                window.markChatAsSeen(chatId, '{{ csrf_token() }}', "{{ route('seen-message-bulk') }}");
                 
                 // Reset font weights and preview text
                 const nameEl = document.getElementById(`contact-name-${id}`);
@@ -331,30 +347,27 @@ use Carbon\Traits\Date;
                 if (textEl) {
                     textEl.classList.remove('font-bold', 'text-blue-600');
                     textEl.classList.add('text-gray-400');
-                    // Restore actual message text if it was showing "X new messages"
-                    if (messages.messageData.length > 0) {
-                        textEl.innerText = messages.messageData[messages.messageData.length - 1].message;
-                    }
                 }
             }
 
             Echo.private(`chat.${chatId}`)
-            .subscribed(() => {})
             .listen('MessageSent', (e) => {
                 if (e.senderId !== {{ auth()->id() }}) {
-                    appendMessageToUI(e.messageData);
-                    messageSeen(e.messageData.messageId); // Mark single incoming message as seen
-                    setTimeout(scrollChatToBottom, 50);
+                    window.appendMessageToUI(e.messageData, {{ auth()->id() }}, window.formatMessageTime);
+                    window.messageSeen(e.messageData.messageId, '{{ csrf_token() }}', "{{ route('seen-message') }}");
+                    setTimeout(window.scrollChatToBottom, 50);
                 }
             })
             .listen('MessageSeen', (e) => {
-                updateMessageTicks(e.messageId, e.delivered_at, e.seen_at, e.chatId || null, e.senderId || null);
+                if (e.senderId == {{ auth()->id() }}) {
+                    window.updateMessageTicks(e.messageId, e.delivered_at, e.seen_at, {{ auth()->id() }}, e.chatId || null, activeContactId, window.updateSidebarTicks);
+                }
             })
             .listenForWhisper('typing', (e) => {
                 showTypingIndicator();
             });
             // Scroll to bottom after all messages are rendered
-            setTimeout(scrollChatToBottom, 50);
+            setTimeout(window.scrollChatToBottom, 50);
         } catch (error) {
             console.error('Failed to load messages:', error);
             container.innerHTML = '<div class="text-center text-red-400 py-10 italic">Error loading messages.</div>';
@@ -368,31 +381,56 @@ use Carbon\Traits\Date;
         }
     }
 
+    function moveContactToTop(senderId, message, isSender, chatId = null, unreadCount = 0) {
+        const chatList = document.getElementById('chatList');
+        let contactItem = null;
+        
+        if (chatId) {
+            contactItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+        }
+        
+        if (!contactItem) {
+            contactItem = document.getElementById(`contact-${senderId}`);
+        }
 
+        if (contactItem) {
+            const textEl = contactItem.querySelector(`[id^="last-msg-text-"]`);
+            const timeEl = contactItem.querySelector(`[id^="last-msg-time-"]`);
+            
+            if (textEl) {
+                textEl.innerText = message;
+                textEl.classList.remove('text-gray-400');
+                textEl.classList.add('font-bold', 'text-blue-600');
+            }
 
-    function highlightContact(id) {
-        document.querySelectorAll('.chat-item').forEach(el => {
-            el.classList.remove('bg-blue-50', 'border-l-4', 'border-blue-500');
-        });
-        const activeEl = document.getElementById(`contact-${id}`);
-        if (activeEl) {
-            activeEl.classList.add('bg-blue-50', 'border-l-4', 'border-blue-500');
+            if (timeEl) {
+                const now = new Date().toISOString();
+                timeEl.dataset.timestamp = now;
+                if (window.formatMessageTime) {
+                    timeEl.innerText = window.formatMessageTime(now);
+                } else {
+                    timeEl.innerText = 'Just now';
+                }
+            }
+
+            // Move to top
+            chatList.prepend(contactItem);
+
+            // Update unread badge if needed
+            const nameEl = contactItem.querySelector(`[id^="contact-name-"]`);
+            if (unreadCount > 0) {
+                if (nameEl) {
+                    nameEl.classList.remove('font-medium', 'text-gray-800');
+                    nameEl.classList.add('font-bold', 'text-gray-900');
+                }
+                if (textEl) {
+                    textEl.innerText = unreadCount > 1 ? `${unreadCount} new messages` : message;
+                }
+            }
         }
     }
 
-    let typingTimeout = null;
-    let typingIndicatorTimeout = null;
 
-    function handleTyping() {
-        if (!activeChatId) return;
-        if (typingTimeout) return;
-        
-        Echo.private(`chat.${activeChatId}`).whisper('typing', {
-            userId: {{ auth()->id() }}
-        });
-
-        typingTimeout = setTimeout(() => { typingTimeout = null; }, 1000);
-    }
 
     function showTypingIndicator() {
         const el = document.getElementById('typing-indicator');
@@ -404,474 +442,111 @@ use Carbon\Traits\Date;
         }, 1500);
     }
 
-    function appendMessageToUI(msg) {
-        const container = document.getElementById('messages');
-
-        // Remove placeholder if it exists
-        const placeholder = document.getElementById('no-messages-placeholder');
-        if (placeholder) placeholder.remove();
-
-        const div = document.createElement('div');
-        div.className = `flex flex-col ${msg.is_sender ? 'items-end' : 'items-start'}`;
-
-        // Only include the tick status container if it's a message WE sent
-        const statusHtml = msg.is_sender 
-            ? `<span class="tick-status block text-right text-[10px] mt-0.5 leading-none opacity-80">${getTicksHtml(msg.delivered_at, msg.seen_at)}</span>` 
-            : '';
-
-        const detailsHtml = msg.is_sender 
-            ? `<div id="details-${msg.messageId}" class="message-details text-gray-500 pr-2 text-right">
-                <div class="delivered-at message-time-live" data-timestamp="${msg.delivered_at || ''}" data-prefix="Delivered at: ">
-                    Delivered at: ${msg.delivered_at ? window.formatMessageTime(msg.delivered_at) : 'Pending...'}
-                </div>
-                <div class="seen-at message-time-live" data-timestamp="${msg.seen_at || ''}" data-prefix="Seen at: ">
-                    Seen at: ${msg.seen_at ? window.formatMessageTime(msg.seen_at) : 'Unread'}
-                </div>
-               </div>`
-            : `<div id="details-${msg.messageId}" class="message-details text-gray-500 pl-2 text-left">
-                <div class="message-time-live" data-timestamp="${msg.created_at || new Date().toISOString()}" data-prefix="Received at: ">
-                    Received at: ${window.formatMessageTime(msg.created_at || new Date().toISOString())}
-                </div>
-               </div>`;
-
-        div.innerHTML = `
-            <div id="msg-${msg.messageId}" 
-                 onclick="toggleMessageDetails('${msg.messageId}')"
-                 class="message-bubble ${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
-                <span>${msg.message}</span>
-                ${statusHtml}
-            </div>
-            ${detailsHtml}
-        `;
-        container.appendChild(div);
-    }
-
-    function toggleMessageDetails(messageId) {
-        const details = document.getElementById(`details-${messageId}`);
-        if (details) {
-            details.classList.toggle('show');
-        }
-    }
-
-    // Returns tick HTML based on delivered_at / seen_at timestamps
-    function getTicksHtml(delivered_at, seen_at) {
-        if (seen_at)      return '<span style="color:#00ff00;font-weight:800;pointer-events:none;" title="Seen">✓✓</span>';
-        if (delivered_at) return '<span style="color:#dfdfdf; font-weight:800;pointer-events:none;" title="Delivered">✓✓</span>';
-        return '<span style="color:#e2e8f0" title="Sent">✓</span>';
-    }
-
-    // Updates the tick indicator on a specific message bubble (called on MessageSeen broadcast)
-    function updateMessageTicks(messageId, deliveredAt, seenAt, chatId = null, senderId = null) {
-        const myId = {{ auth()->id() }};
-
-        // 1. Update the chat bubble if it's currently on screen
-        const msgBubble = document.getElementById(`msg-${messageId}`);
-        const details = document.getElementById(`details-${messageId}`);
-
-        if (msgBubble) {
-            const ticksContainer = msgBubble.querySelector('.tick-status');
-            if (ticksContainer) {
-                ticksContainer.innerHTML = getTicksHtml(deliveredAt, seenAt);
-            }
-        }
-
-        if (details) {
-            if (deliveredAt) {
-                const delEl = details.querySelector('.delivered-at');
-                if (delEl) {
-                    delEl.dataset.timestamp = deliveredAt;
-                    delEl.innerText = `Delivered at: ${window.formatMessageTime(deliveredAt)}`;
-                }
-            }
-            if (seenAt) {
-                const seenEl = details.querySelector('.seen-at');
-                if (seenEl) {
-                    seenEl.dataset.timestamp = seenAt;
-                    seenEl.innerText = `Seen at: ${window.formatMessageTime(seenAt)}`;
-                }
-            }
-        }
+    let sidebarTypingTimeouts = {};
+    function showSidebarTyping(userId) {
+        const textEl = document.getElementById(`last-msg-text-${userId}`);
+        const ticksEl = document.getElementById(`last-msg-ticks-${userId}`);
+        const typingEl = document.getElementById(`sidebar-typing-${userId}`);
         
-        // 2. Update the sidebar ticks — ONLY if I am the sender of this message
-        if (senderId && senderId == myId) {
-            let targetContactId = null;
+        if (!textEl || !typingEl) return;
 
-            if (chatId) {
-                const contactItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
-                if (contactItem) targetContactId = contactItem.id.split('-')[1];
-            } else if (activeContactId) {
-                targetContactId = activeContactId;
-            }
+        textEl.classList.add('hidden');
+        if (ticksEl) ticksEl.classList.add('hidden');
+        typingEl.classList.remove('hidden');
 
-            if (targetContactId) {
-                updateSidebarTicks(targetContactId, deliveredAt, seenAt);
-            }
-        }
+        if (sidebarTypingTimeouts[userId]) clearTimeout(sidebarTypingTimeouts[userId]);
+        sidebarTypingTimeouts[userId] = setTimeout(() => {
+            typingEl.classList.add('hidden');
+            textEl.classList.remove('hidden');
+            if (ticksEl) ticksEl.classList.remove('hidden');
+            delete sidebarTypingTimeouts[userId];
+        }, 1500);
     }
 
-    function updateSidebarTicks(contactId, deliveredAt, seenAt) {
-        const ticksSpan = document.getElementById(`last-msg-ticks-${contactId}`);
-        if (ticksSpan) {
-            ticksSpan.innerHTML = getTicksHtml(deliveredAt, seenAt);
-        }
-    }
+    let typingTimeout = null;
+    let typingIndicatorTimeout = null;
 
-    function scrollChatToBottom() {
-        const container = document.getElementById('messages');
-        if (container) {
-            container.scrollTo({
-                top: container.scrollHeight,
-                behavior: 'smooth'
+    function handleTyping() {
+        if (!activeContactId) return;
+        if (typingTimeout) return;
+        
+        // Whisper to chat channel (for main chat window indicator)
+        if (activeChatId) {
+            Echo.private(`chat.${activeChatId}`).whisper('typing', {
+                userId: {{ auth()->id() }}
             });
         }
-    }
 
-    async function loadNotifications() {
-        try {
-            const response = await fetch("{{ route('notifications.index') }}");
-            const notifications = await response.json();
-            const container = document.getElementById('notificationsContainer');
-            container.innerHTML = '';
-
-            if (notifications.length === 0) {
-                container.innerHTML = '<div class="p-3 text-sm text-gray-500 text-center">No new notifications.</div>';
-            } else {
-                notifications.forEach(notif => {
-                    let data = notif.data;
-                    if (typeof data === 'string') {
-                        try { data = JSON.parse(data); } catch(e) { data = {}; }
-                    }
-                    
-                    addNotificationToUI({
-                        id: notif.id,
-                        ...data,
-                        created_at: notif.created_at,
-                        is_unread: !notif.read_at 
-                    });
-                });
-            }
-            updateBadgeCount();
-        } catch (error) {
-            console.error('Error loading notifications:', error);
-        }
-    }
-    async function receiveFallbackMessages() {
-        fetch("{{ route('fallback-messages') }}", {
-            method: 'PUT',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-        })
-        .then(response => response.json())
-        .then(data => {})
-        .catch(error => {
-            console.error('Error:', error);
+        // Whisper to user-status channel (for sidebar indicator)
+        Echo.join(`user-status.${activeContactId}`).whisper('typing', {
+            userId: {{ auth()->id() }}
         });
-    }
-    async function messageDeliveredSuccess(e) {
-         fetch("{{ route('message-delivered-online') }}", {
-            method: 'PATCH',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ userId: e.senderId, messageId: e.messageId })
-        })
-        .then(response => response.json())
-        .catch(error => {
-            console.error('Error:', error);
-        });
+
+        typingTimeout = setTimeout(() => { typingTimeout = null; }, 1000);
     }
 
-    async function markChatAsSeen(chatId) {
-        fetch("{{ route('seen-message-bulk') }}", {
-            method: 'PATCH',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ chat_id: chatId })
-        }).catch(error => console.error('Error marking chat as seen:', error));
-    }
-
-    async function messageSeen(msgId) {
-         fetch("{{ route('seen-message') }}", {
-            method: 'PATCH',
-            credentials: 'same-origin',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            },
-            body: JSON.stringify({ message: msgId })
-        })
-        .then(response => response.json())
-        .then(data => {
-            
-        })
-        .catch(error => {
-            console.error('Error:', error);
-        });
-    }
-
-    function addNotificationToUI(notif, isNew = false) {
-        const container = document.getElementById('notificationsContainer');
-        const emptyMsg = container.querySelector('.text-gray-500');
-        if (emptyMsg) emptyMsg.remove();
-
-        // 1. Robust data extraction (handles different Laravel/Echo formats)
-        const id = notif.id || 'new';
-        const data = notif.data || notif; // Fallback to root if 'data' object is missing
-        const dataType = data.data_type || notif.data_type;
-        const status = data.status || notif.status;
-        const message = data.message || notif.message || 'New notification';
-        const senderName = data.sender_name || notif.sender_name || 'User';
-        const createdAt = notif.created_at || data.created_at;
-
-        const div = document.createElement('div');
-        const isUnread = notif.is_unread || isNew;
-        div.className = `p-3 border-b hover:bg-gray-50 transition-colors ${isUnread ? 'unread bg-blue-50' : ''}`;
-        div.id = `notif-${id}`;
-        div.setAttribute('data-sender', senderName); // Store sender name for handleNotifAction
-
-        let actionHtml = '';
-        let displayMessage = message;
-        let messageClass = 'text-gray-800';
-
-        // 2. Render based on extracted type and status
-        if (dataType === 'friend_request_received') {
-            if (status === 'accepted') {
-                displayMessage = `${senderName} accepted friend request`;
-                messageClass = 'text-gray-500';
-                actionHtml = '<div class="mt-1 text-xs font-bold text-green-600">✓ Added to friends</div>';
-            } else if (status === 'rejected') {
-                displayMessage = `${senderName} rejected friend request`;
-                messageClass = 'text-gray-500';
-                actionHtml = '<div class="mt-1 text-xs font-bold text-red-600">✕ Request declined</div>';
-            } else {
-                actionHtml = `
-                    <div class="mt-2 flex gap-2 action-buttons">
-                        <button onclick="handleNotifAction('${id}', 'accept')" class="bg-blue-500 text-white text-xs px-3 py-1 rounded hover:bg-blue-600">Accept</button>
-                        <button onclick="handleNotifAction('${id}', 'reject')" class="bg-gray-200 text-gray-700 text-xs px-3 py-1 rounded hover:bg-gray-300">Reject</button>
-                    </div>
-                `;
-            }
-        }
-
-        div.innerHTML = `
-            <div class="text-sm font-medium ${messageClass}">${displayMessage}</div>
-            <div class="notif-action-area">${actionHtml}</div>
-            <div class="text-xs text-gray-500 mt-1">${createdAt ? new Date(createdAt).toLocaleString() : 'Just now'}</div>
-        `;
-
-        if (isNew) {
-            container.insertBefore(div, container.firstChild);
-            updateBadgeCount(1);
-        } else {
-            container.appendChild(div);
-        }
-    }
-
-    function updateStatusUI(userId, isOnline) {
-        const sidebarDot = document.getElementById(`status-dot-${userId}`);
-        const sidebarText = document.getElementById(`status-text-${userId}`);
-        
-        if (sidebarDot) {
-            setDotStatus(sidebarDot, isOnline);
-        }
-
-        if (sidebarText) {
-            if (isOnline) {
-                sidebarText.innerText = 'Online';
-                sidebarText.classList.add('text-green-500');
-                sidebarText.classList.remove('text-gray-500');
-            } else if (sidebarText.innerText === 'Online') {
-                // User just left: update timestamp to now and set text
-                sidebarText.dataset.timestamp = new Date().toISOString();
-                sidebarText.innerText = typeof window.formatTimeAgo === 'function' 
-                    ? window.formatTimeAgo(sidebarText.dataset.timestamp) 
-                    : 'Just now';
-                
-                sidebarText.classList.remove('text-green-500');
-                sidebarText.classList.add('text-gray-500');
-            }
-        }
-
-        if (activeContactId == userId) {
-            const headerDot = document.getElementById('header-status-dot');
-            const headerText = document.getElementById('header-status-text');
-            
-            if (headerDot) {
-                setDotStatus(headerDot, isOnline);
-            }
-            if (headerText) {
-                if (isOnline) {
-                    headerText.innerText = 'Online';
-                    headerText.classList.add('text-green-500');
-                    headerText.classList.remove('text-gray-400');
-                } else if (headerText.innerText === 'Online') {
-                    headerText.innerText = typeof window.formatTimeAgo === 'function' 
-                        ? window.formatTimeAgo(new Date().toISOString()) 
-                        : 'Just now';
-                    headerText.classList.remove('text-green-500');
-                    headerText.classList.add('text-gray-400');
-                }
-            }
-        }
-    }
-
-    function setDotStatus(el, isOnline) {
-        if (isOnline) {
-            el.classList.remove('bg-gray-400');
-            el.classList.add('bg-green-500');
-            el.title = 'online';
-        } else {
-            el.classList.remove('bg-green-500');
-            el.classList.add('bg-gray-400');
-            el.title = 'offline';
-        }
-    }
 
 
     function addContactToSidebar(contact) {
         const chatList = document.getElementById('chatList');
         
-        // Check if already in list
-        if (document.getElementById(`contact-${contact.id}`)) return;
+        if (!contact || !contact.id || document.getElementById(`contact-${contact.id}`)) return;
 
         const div = document.createElement('div');
-        div.className = 'p-3 border-b cursor-pointer hover:bg-gray-100 chat-item';
         div.id = `contact-${contact.id}`;
-        div.innerText = contact.name;
+        div.setAttribute('data-chat-id', contact.chat_id || '');
+        div.className = 'p-3 border-b cursor-pointer hover:bg-gray-100 chat-item flex items-center justify-between';
+        div.onclick = () => openChat(contact.id, contact.name, 'Just now');
+
+        div.innerHTML = `
+            <div class="flex flex-col flex-1 overflow-hidden">
+                <span id="contact-name-${contact.id}" class="font-medium text-gray-800">
+                    ${contact.name}
+                </span>
+                <div class="flex items-center gap-1">
+                    <span id="last-msg-ticks-${contact.id}" class="text-[10px] leading-none"></span>
+                    <span id="last-msg-text-${contact.id}" class="text-xs truncate text-gray-400">
+                        No messages yet
+                    </span>
+                    <span id="sidebar-typing-${contact.id}" class="text-xs italic text-blue-500 hidden animate-pulse">typing...</span>
+                </div>
+            </div>
+            <div class="flex flex-col items-end gap-1">
+                <span id="last-msg-time-${contact.id}" class="text-[10px] text-gray-400 whitespace-nowrap message-time-live" data-timestamp="${new Date().toISOString()}">
+                    Just now
+                </span>
+                <div id="status-dot-${contact.id}" class="w-3 h-3 rounded-full bg-gray-400 transition-colors duration-300" title="offline"></div>
+                <span id="status-text-${contact.id}" class="text-[10px] text-gray-400 whitespace-nowrap last-seen-timer" data-timestamp="${new Date().toISOString()}">
+                    Just now
+                </span>
+            </div>
+        `;
         
-        // Click listener to open chat
-        div.onclick = () => openChat(contact.id, contact.name);
-        chatList.appendChild(div);
+        chatList.prepend(div);
 
         Echo.join(`user-status.${contact.id}`)
         .here((users) => {
             const isFriendOnline = users.some(u => u.id == contact.id);
-            updateStatusUI(contact.id, isFriendOnline);
+            window.updateStatusUI(contact.id, isFriendOnline, activeContactId);
         })
-        .joining((user) =>{ 
-            if (user.id == contact.id) updateStatusUI(contact.id, true);
+        .joining((user) => { 
+            if (user.id == contact.id) window.updateStatusUI(contact.id, true, activeContactId);
         })
-        .leaving((user) =>{
-            if (user.id == contact.id) updateStatusUI(contact.id, false);
-        });
-
-    }
-
-    async function handleNotifAction(id, action) {
-        const notifElement = document.getElementById(`notif-${id}`);
-        if (notifElement) notifElement.style.opacity = '0.5';
-
-        try {
-            const url = action === 'accept' ? `/notifications/${id}/accept` : `/notifications/${id}/reject`;
-            const response = await fetch(url, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                    'Accept': 'application/json'
-                }
-            });
-
-            const result = await response.json();
-
-            if (response.ok) {
-                // 1. Update the main message text using the stored sender name
-                const senderName = notifElement.getAttribute('data-sender') || 'User';
-                const msgText = notifElement.querySelector('.text-sm');
-                if (msgText) {
-                    msgText.innerText = action === 'accept' ? `${senderName} accepted friend request` : `${senderName} rejected friend request`;
-                    msgText.classList.remove('text-gray-800');
-                    msgText.classList.add('text-gray-500');
-                }
-
-                // 2. Update the action area text
-                const actionArea = notifElement.querySelector('.notif-action-area');
-                if (actionArea) {
-                    if (action === 'accept') {
-                        actionArea.innerHTML = '<div class="mt-1 text-xs font-bold text-green-600">✓ Added to friends</div>';
-                    } else {
-                        actionArea.innerHTML = '<div class="mt-1 text-xs font-bold text-red-600">✕ Request declined</div>';
-                    }
-                }
-                
-                notifElement.style.opacity = '1';
-                updateBadgeCount(); 
-                
-                if (action === 'accept' && result.contact) {
-                    addContactToSidebar(result.contact);
-                }
-            }
-        } catch (error) {
-            console.error(`Error during ${action}:`, error);
-            if (notifElement) notifElement.style.opacity = '1';
-        }
-    }
-
-    function updateBadgeCount(delta = 0) {
-        const badge = document.getElementById('notifBadge');
-        if (!badge) return;
-        let count = parseInt(badge.innerText) || 0;
-        
-        if (delta !== 0) {
-            count += delta;
-        } else {
-            const container = document.getElementById('notificationsContainer');
-            count = container.querySelectorAll('.unread').length; // Only count items with 'unread' class
-        }
-
-        badge.innerText = count;
-        if (count > 0) {
-            badge.classList.remove('hidden');
-        } else {
-            badge.classList.add('hidden');
-        }
-    }
-
-    function toggleNotifications() {
-        const dropdown = document.getElementById('notifDropdown');
-        const badge = document.getElementById('notifBadge');
-
-        dropdown.classList.toggle('hidden');
-
-        if (!dropdown.classList.contains('hidden') && !badge.classList.contains('hidden')){
-            badge.classList.add('hidden');
-            badge.innerText = "0";
-
-            // Mark all current items as read locally
-            document.querySelectorAll('#notificationsContainer .unread').forEach(el => {
-                el.classList.remove('unread', 'bg-blue-50');
-            });
-
-            fetch("{{ route('notifications.readAll') }}", {
-            method: 'POST',
-            headers: {
-                'X-CSRF-TOKEN': '{{ csrf_token() }}',
-                'Accept': 'application/json'
-            }
-        }).catch(error => console.error('Error marking notifications as read:', error));
-        }
-    }
-
-    function filterChats(query) {
-        let items = document.querySelectorAll('.chat-item');
-        items.forEach(item => {
-            item.style.display = item.innerText.toLowerCase().includes(query.toLowerCase())
-                ? 'block'
-                : 'none';
+        .leaving((user) => {
+            if (user.id == contact.id) window.updateStatusUI(contact.id, false, activeContactId);
         });
     }
+
+
+
+    // Wrapper for modular notification actions
+    window.handleNotifActionWrapper = (id, action) => {
+        window.handleNotifAction(id, action, '{{ csrf_token() }}', addContactToSidebar);
+    };
+
+    window.toggleNotificationsWrapper = () => {
+        window.toggleNotifications("{{ route('notifications.readAll') }}", '{{ csrf_token() }}');
+    };
 
     function searchUser(event) {
         event.preventDefault();
@@ -911,11 +586,11 @@ use Carbon\Traits\Date;
 
         if (!msgText || !activeContactId) return;
 
-        // Optimistic update with a temporary ID so the bubble exists immediately
+        // Optimistic update
         const tempId = `temp-${Date.now()}`;
-        appendMessageToUI({ messageId: tempId, message: msgText, is_sender: true });
+        window.appendMessageToUI({ messageId: tempId, message: msgText, is_sender: true }, {{ auth()->id() }}, window.formatMessageTime);
         input.value = '';
-        scrollChatToBottom();
+        window.scrollChatToBottom();
 
         try {
             const response = await fetch('/chat/send', {
@@ -931,14 +606,12 @@ use Carbon\Traits\Date;
                 })
             });
 
-            // Swap the temp ID for the real message ID so MessageSeen ticks work
             const saved = await response.json();
             const tempBubble = document.getElementById(`msg-${tempId}`);
             if (tempBubble && saved.id) {
                 tempBubble.id = `msg-${saved.id}`;
             }
 
-            // Move to top and update sidebar ticks
             moveContactToTop(activeContactId, msgText, true, activeChatId, 0);
         } catch (error) {
             console.log('Error sending message:', error);
