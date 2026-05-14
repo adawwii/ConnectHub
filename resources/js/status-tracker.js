@@ -16,7 +16,7 @@ function getAdjustedNow() {
  */
 export function formatTimeAgo(timestamp) {
     if (!timestamp) return 'a long time ago';
-    
+
     const date = new Date(timestamp);
     const now = getAdjustedNow();
     const diffInSeconds = Math.floor((now - date) / 1000);
@@ -26,7 +26,7 @@ export function formatTimeAgo(timestamp) {
 
     if (diffInSeconds < 60) return 'Just now';
     if (diffInMinutes < 60) return diffInMinutes + ' minutes ago';
-    
+
     // Check if it's today
     if (date.toDateString() === now.toDateString()) {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -39,7 +39,7 @@ export function formatTimeAgo(timestamp) {
 
     if (diffInDays < 7) return 'Last seen on ' + date.toLocaleDateString([], { weekday: 'long' });
     if (diffInDays < 14) return 'Last week';
-    
+
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 }
 
@@ -48,7 +48,7 @@ export function formatTimeAgo(timestamp) {
  */
 export function formatMessageTime(timestamp) {
     if (!timestamp) return '';
-    
+
     const date = new Date(timestamp);
     const now = getAdjustedNow();
     const diffInSeconds = Math.floor((now - date) / 1000);
@@ -57,7 +57,7 @@ export function formatMessageTime(timestamp) {
 
     if (diffInSeconds < 60) return 'Just now';
     if (diffInMinutes < 60) return diffInMinutes + ' minutes ago';
-    
+
     // Today
     if (date.toDateString() === now.toDateString()) {
         return timeStr;
@@ -75,7 +75,7 @@ export function formatMessageTime(timestamp) {
     if (diffInDays < 7) {
         return date.toLocaleDateString([], { weekday: 'long' }) + ' at ' + timeStr;
     }
-    
+
     // Older
     return date.toLocaleDateString([], { month: 'short', day: 'numeric' }) + ' at ' + timeStr;
 }
@@ -97,7 +97,7 @@ function _tickTimestamps() {
             el.innerText = formatTimeAgo(el.dataset.timestamp);
         }
     });
-    
+
     // Refresh message detail timers
     document.querySelectorAll('.message-time-live').forEach(el => {
         if (el.dataset.timestamp) {

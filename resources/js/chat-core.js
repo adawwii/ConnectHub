@@ -15,11 +15,11 @@ export function appendMessageToUI(msg, authId, formatMessageTimeCallback) {
     div.className = `flex flex-col ${msg.is_sender ? 'items-end' : 'items-start'}`;
 
     // Only include the tick status container if it's a message WE sent
-    const statusHtml = msg.is_sender 
-        ? `<span class="tick-status block text-right text-[10px] mt-0.5 leading-none opacity-80">${getTicksHtml(msg.delivered_at, msg.seen_at)}</span>` 
+    const statusHtml = msg.is_sender
+        ? `<span class="tick-status block text-right text-[10px] mt-0.5 leading-none opacity-80">${getTicksHtml(msg.delivered_at, msg.seen_at)}</span>`
         : '';
 
-    const detailsHtml = msg.is_sender 
+    const detailsHtml = msg.is_sender
         ? `<div id="details-${msg.messageId}" class="message-details text-gray-500 pr-2 text-right">
             <div class="delivered-at message-time-live" data-timestamp="${msg.delivered_at || ''}" data-prefix="Delivered at: ">
                 Delivered at: ${msg.delivered_at ? formatMessageTimeCallback(msg.delivered_at) : 'Pending...'}
@@ -82,7 +82,7 @@ export function updateMessageTicks(messageId, deliveredAt, seenAt, authId, chatI
     if (chatItem && seenAt) {
         window.updateStatusUI(activeContactId, true, activeContactId);
     }
-    
+
     // Update sidebar ticks if needed
     if (updateSidebarTicksCallback) {
         let targetContactId = null;
@@ -107,7 +107,7 @@ export function updateSidebarTicks(contactId, deliveredAt, seenAt) {
 }
 
 export async function messageSeen(msgId, csrfToken, seenRoute) {
-     fetch(seenRoute, {
+    fetch(seenRoute, {
         method: 'PATCH',
         credentials: 'same-origin',
         headers: {
@@ -117,11 +117,11 @@ export async function messageSeen(msgId, csrfToken, seenRoute) {
         },
         body: JSON.stringify({ message: msgId })
     })
-    .catch(error => console.error('Error in messageSeen:', error));
+        .catch(error => console.error('Error in messageSeen:', error));
 }
 
 export async function messageDeliveredSuccess(senderId, messageId, csrfToken, deliveredRoute) {
-     fetch(deliveredRoute, {
+    fetch(deliveredRoute, {
         method: 'PATCH',
         credentials: 'same-origin',
         headers: {
@@ -143,7 +143,7 @@ export async function receiveFallbackMessages(fallbackRoute, csrfToken) {
             'Accept': 'application/json'
         },
     })
-    .catch(error => console.error('Error in receiveFallbackMessages:', error));
+        .catch(error => console.error('Error in receiveFallbackMessages:', error));
 }
 
 export async function markChatAsSeen(chatId, csrfToken, seenRoute) {

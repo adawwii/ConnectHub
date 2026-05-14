@@ -37,7 +37,7 @@ class ChatService
                 $friend->last_message = $lastMsg?->message;
                 $friend->last_message_sender_id = $lastMsg?->user_id;
                 $friend->last_message_status = [
-                    'delivered' => $lastMsg?->deliverd_at,
+                    'delivered' => $lastMsg?->delivered_at,
                     'seen' => $lastMsg?->seen_at,
                 ];
                 $friend->last_activity = $lastMsg ? $lastMsg->created_at : $friend->friendship_created_at;

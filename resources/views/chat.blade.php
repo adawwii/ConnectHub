@@ -347,6 +347,11 @@
                 if (textEl) {
                     textEl.classList.remove('font-bold', 'text-blue-600');
                     textEl.classList.add('text-gray-400');
+                    
+                    // Restore actual message text if it was showing "X new messages"
+                    if (messages.messageData.length > 0) {
+                        textEl.innerText = messages.messageData[messages.messageData.length - 1].message;
+                    }
                 }
             }
 
@@ -608,8 +613,13 @@
 
             const saved = await response.json();
             const tempBubble = document.getElementById(`msg-${tempId}`);
+            const tempdetails = document.getElementById(`details-${tempId}`);
             if (tempBubble && saved.id) {
                 tempBubble.id = `msg-${saved.id}`;
+                if (tempdetails) tempdetails.id = `details-${saved.id}`;
+                
+                // Update the onclick handler to use the new database ID
+                tempBubble.onclick = () => window.toggleMessageDetails(saved.id);
             }
 
             moveContactToTop(activeContactId, msgText, true, activeChatId, 0);
