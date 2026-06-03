@@ -26,7 +26,8 @@ class ChatController extends Controller
     // retrive or create chat data 
     public function openChat(User $friend)
     {
-        $messages = $this->chatService->chatData($friend);
+        $before = request()->query('before');
+        $messages = $this->chatService->chatData($friend, $before);
         return response()->json($messages);
     }
 }

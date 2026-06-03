@@ -46,6 +46,48 @@ export function appendMessageToUI(msg, authId, formatMessageTimeCallback) {
     container.appendChild(div);
 }
 
+export function prependMessageToUI(msg, authId, formatMessageTimeCallback) {
+    const container = document.getElementById('messages');
+
+    // Remove placeholder if it exists
+    const placeholder = document.getElementById('no-messages-placeholder');
+    if (placeholder) placeholder.remove();
+
+    const div = document.createElement('div');
+    div.className = `flex flex-col ${msg.is_sender ? 'items-end' : 'items-start'}`;
+
+    // Only include the tick status container if it's a message WE sent
+    const statusHtml = msg.is_sender
+        ? `<span class="tick-status block text-right text-[10px] mt-0.5 leading-none opacity-80">${getTicksHtml(msg.delivered_at, msg.seen_at)}</span>`
+        : '';
+
+    const detailsHtml = msg.is_sender
+        ? `<div id="details-${msg.messageId}" class="message-details text-gray-500 pr-2 text-right">
+            <div class="delivered-at message-time-live" data-timestamp="${msg.delivered_at || ''}" data-prefix="Delivered at: ">
+                Delivered at: ${msg.delivered_at ? formatMessageTimeCallback(msg.delivered_at) : 'Pending...'}
+            </div>
+            <div class="seen-at message-time-live" data-timestamp="${msg.seen_at || ''}" data-prefix="Seen at: ">
+                Seen at: ${msg.seen_at ? formatMessageTimeCallback(msg.seen_at) : 'Unread'}
+            </div>
+           </div>`
+        : `<div id="details-${msg.messageId}" class="message-details text-gray-500 pl-2 text-left">
+            <div class="message-time-live" data-timestamp="${msg.created_at || new Date().toISOString()}" data-prefix="Received at: ">
+                Received at: ${formatMessageTimeCallback(msg.created_at || new Date().toISOString())}
+            </div>
+           </div>`;
+
+    div.innerHTML = `
+        <div id="msg-${msg.messageId}" 
+             onclick="window.toggleMessageDetails('${msg.messageId}')"
+             class="message-bubble ${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
+            <span>${msg.message}</span>
+            ${statusHtml}
+        </div>
+        ${detailsHtml}
+    `;
+    container.prepend(div);
+}
+
 export function updateMessageTicks(messageId, deliveredAt, seenAt, authId, chatId, activeContactId, updateSidebarTicksCallback) {
     const msgBubble = document.getElementById(`msg-${messageId}`);
     const details = document.getElementById(`details-${messageId}`);

@@ -203,6 +203,9 @@
     <script>
     let activeContactId = null;
     let activeChatId = null;
+    let chatHasMore = false;
+    let chatOldestMessageId = null;
+    let isLoadingMore = false;
 
     window.addEventListener('DOMContentLoaded', () => {
         // Initialize modular systems
@@ -283,12 +286,24 @@
         if (typeof window.startStatusTimer === 'function') {
             window.startStatusTimer();
         }
+
+        const messagesContainer = document.getElementById('messages');
+        if (messagesContainer) {
+            messagesContainer.addEventListener('scroll', () => {
+                if (messagesContainer.scrollTop < 100 && chatHasMore && !isLoadingMore) {
+                    loadOlderMessages();
+                }
+            });
+        }
     });
         
 
     // Open a chat and fetch history
     async function openChat(id, name, lastSeen) {
         activeContactId = id;
+        chatHasMore = false;
+        chatOldestMessageId = null;
+        isLoadingMore = false;
         
         // UI Updates
         document.getElementById('chatTitle').innerText = name;
@@ -318,7 +333,11 @@
             const messages = await response.json();
             const chatId=messages.chat_id;
 
-            
+            chatHasMore = messages.has_more;
+            if (messages.messageData.length > 0) {
+                chatOldestMessageId = messages.messageData[0].messageId;
+            }
+
             container.innerHTML = ''; // Clear loader
             if (messages.messageData.length === 0) {
                 container.innerHTML = '<div id="no-messages-placeholder" class="text-center text-gray-400 py-10 italic">No messages yet. Say hi!</div>';
@@ -383,6 +402,52 @@
             document.getElementById('sidebar').classList.add('hidden');
             document.getElementById('chatArea').classList.remove('hidden');
             document.getElementById('chatArea').classList.add('flex');
+        }
+    }
+
+    // Load older messages for pagination
+    async function loadOlderMessages() {
+        if (isLoadingMore || !chatHasMore || !activeContactId) return;
+
+        isLoadingMore = true;
+        const container = document.getElementById('messages');
+        
+        const loader = document.createElement('div');
+        loader.id = 'pagination-loader';
+        loader.className = 'text-center text-gray-400 py-2 italic text-xs';
+        loader.innerText = 'Loading older messages...';
+        container.prepend(loader);
+
+        const previousScrollHeight = container.scrollHeight;
+
+        try {
+            const response = await fetch(`/chat/messages/${activeContactId}?before=${chatOldestMessageId}`, {
+                credentials: 'same-origin'
+            });
+            const data = await response.json();
+            
+            const loaderEl = document.getElementById('pagination-loader');
+            if (loaderEl) loaderEl.remove();
+
+            if (data.messageData && data.messageData.length > 0) {
+                // Loop backwards to prepend newest in the batch first so they preserve chronological order
+                for (let i = data.messageData.length - 1; i >= 0; i--) {
+                    window.prependMessageToUI(data.messageData[i], {{ auth()->id() }}, window.formatMessageTime);
+                }
+                chatOldestMessageId = data.messageData[0].messageId;
+            }
+
+            chatHasMore = data.has_more;
+
+            // Restore scroll position
+            container.scrollTop = container.scrollHeight - previousScrollHeight;
+
+        } catch (error) {
+            console.error('Failed to load older messages:', error);
+            const loaderEl = document.getElementById('pagination-loader');
+            if (loaderEl) loaderEl.remove();
+        } finally {
+            isLoadingMore = false;
         }
     }
 

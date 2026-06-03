@@ -31,6 +31,7 @@ window.toggleNotifications = Notifications.toggleNotifications;
 // Chat Core
 window.receiveFallbackMessages = ChatCore.receiveFallbackMessages;
 window.appendMessageToUI = ChatCore.appendMessageToUI;
+window.prependMessageToUI = ChatCore.prependMessageToUI;
 window.updateMessageTicks = ChatCore.updateMessageTicks;
 window.updateSidebarTicks = ChatCore.updateSidebarTicks;
 window.messageSeen = ChatCore.messageSeen;

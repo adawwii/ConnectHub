@@ -21,24 +21,24 @@ export function formatTimeAgo(timestamp) {
     const now = getAdjustedNow();
     const diffInSeconds = Math.floor((now - date) / 1000);
     const diffInMinutes = Math.floor(diffInSeconds / 60);
-    const diffInHours = Math.floor(diffInMinutes / 60);
-    const diffInDays = Math.floor(diffInHours / 24);
 
     if (diffInSeconds < 60) return 'Just now';
     if (diffInMinutes < 60) return diffInMinutes + ' minutes ago';
 
+    const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dateMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffInCalendarDays = Math.round((nowMidnight - dateMidnight) / (1000 * 60 * 60 * 24));
+
     // Check if it's today
-    if (date.toDateString() === now.toDateString()) {
+    if (diffInCalendarDays === 0) {
         return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     }
 
     // Check if it's yesterday
-    const yesterday = new Date();
-    yesterday.setDate(now.getDate() - 1);
-    if (date.toDateString() === yesterday.toDateString()) return 'Yesterday';
+    if (diffInCalendarDays === 1) return 'Yesterday';
 
-    if (diffInDays < 7) return 'Last seen on ' + date.toLocaleDateString([], { weekday: 'long' });
-    if (diffInDays < 14) return 'Last week';
+    if (diffInCalendarDays < 7) return 'Last seen on ' + date.toLocaleDateString([], { weekday: 'long' });
+    if (diffInCalendarDays < 14) return 'Last week';
 
     return date.toLocaleDateString([], { month: 'short', day: 'numeric', year: 'numeric' });
 }
@@ -58,21 +58,22 @@ export function formatMessageTime(timestamp) {
     if (diffInSeconds < 60) return 'Just now';
     if (diffInMinutes < 60) return diffInMinutes + ' minutes ago';
 
+    const nowMidnight = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const dateMidnight = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const diffInCalendarDays = Math.round((nowMidnight - dateMidnight) / (1000 * 60 * 60 * 24));
+
     // Today
-    if (date.toDateString() === now.toDateString()) {
+    if (diffInCalendarDays === 0) {
         return timeStr;
     }
 
     // Yesterday
-    const yesterday = new Date();
-    yesterday.setDate(now.getDate() - 1);
-    if (date.toDateString() === yesterday.toDateString()) {
+    if (diffInCalendarDays === 1) {
         return 'Yesterday at ' + timeStr;
     }
 
     // Within last 7 days
-    const diffInDays = Math.floor((now - date) / (1000 * 60 * 60 * 24));
-    if (diffInDays < 7) {
+    if (diffInCalendarDays < 7) {
         return date.toLocaleDateString([], { weekday: 'long' }) + ' at ' + timeStr;
     }
 

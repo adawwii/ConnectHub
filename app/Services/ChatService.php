@@ -58,32 +58,44 @@ class ChatService
     }
 
     //retrieve or create chat 
-    public function chatData(User $friend)
+    public function chatData(User $friend, $beforeId = null)
     {
-        $onlineUser= auth()->user();
+        $onlineUser = auth()->user();
         $chat = $this->chat->between($onlineUser->id, $friend->id)->first();
         if (!$chat) {
            $chat = Chat::create();
            $chat->users()->syncWithoutDetaching([$onlineUser->id, $friend->id]);
         }
-        $messages=$chat->messages()
-        ->oldest()
-        ->get();
-        if($messages){
-             $messagesContent =['chat_id' => $chat->id , 'messageData' => $messages->map(function ($singleMessage) use ($onlineUser) {
-        return [
-            'messageId'    => $singleMessage->id,
-            'is_sender'    => $singleMessage->user_id === $onlineUser->id,
-            'message'      => $singleMessage->message,
-            'delivered_at' => $singleMessage->delivered_at?->toIso8601String(),
-            'seen_at'      => $singleMessage->seen_at?->toIso8601String(),
-            'created_at'   => $singleMessage->created_at?->toIso8601String(),
+        
+        $perPage = 30;
+        $query = $chat->messages();
+        
+        if ($beforeId) {
+            $query->where('id', '<', $beforeId);
+        }
+        
+        $messages = $query->latest('id')->limit($perPage)->get()->reverse()->values();
+        
+        $hasMore = false;
+        if ($messages->isNotEmpty()) {
+            $oldestLoadedId = $messages->first()->id;
+            $hasMore = $chat->messages()->where('id', '<', $oldestLoadedId)->exists();
+        }
+        
+        $messagesContent = [
+            'chat_id' => $chat->id,
+            'has_more' => $hasMore,
+            'messageData' => $messages->map(function ($singleMessage) use ($onlineUser) {
+                return [
+                    'messageId'    => $singleMessage->id,
+                    'is_sender'    => $singleMessage->user_id === $onlineUser->id,
+                    'message'      => $singleMessage->message,
+                    'delivered_at' => $singleMessage->delivered_at?->toIso8601String(),
+                    'seen_at'      => $singleMessage->seen_at?->toIso8601String(),
+                    'created_at'   => $singleMessage->created_at?->toIso8601String(),
+                ];
+            })->values()
         ];
-    })];
-        }
-        else {
-            $messagesContent = ['chat_id' => $chat->id, 'messageData' => [] ];
-        }
         
         return $messagesContent;
     }
