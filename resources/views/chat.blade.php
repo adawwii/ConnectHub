@@ -3,7 +3,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat</title>
+    <title>ConnectHub</title>
+    <link rel="shortcut icon" href="https://img.icons8.com/?size=100&id=7859&format=png&color=228BE6" type="image/x-icon">
     <script src="https://cdn.tailwindcss.com"></script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <meta name="server-time" content="{{ now()->toIso8601String() }}">
@@ -35,7 +36,7 @@
 <!-- Top Navbar -->
 <div class="bg-white shadow px-4 py-3 flex justify-between items-center">
 
-    <h1 class="font-bold text-lg">Chat App</h1>
+    <h1 class="font-bold text-2xl cursor-default "><img class="inline-block mb-1" src="https://img.icons8.com/?size=100&id=7859&format=png&color=228BE6" alt="Home Icon" width="24" height="24"> Connect<span class="text-blue-600">Hub</span></h1>
 
     <div class="flex items-center gap-4">
         <!-- Notifications -->
@@ -60,13 +61,7 @@
             </div>
         </div>
 
-        <!-- Logout -->
-        <form action="{{ route('logout') }}" method="POST">
-            @csrf
-            <button type="submit" class="text-sm bg-red-500 text-white px-3 py-1.5 rounded-lg hover:bg-red-600 transition">
-                Logout
-            </button>
-        </form>
+        
     </div>
 
 </div>
@@ -156,6 +151,15 @@
 
             
 
+        </div>
+        <!-- Logout -->
+        <div class="flex justify-center my-2 p-0">
+        <form action="{{ route('logout') }}" class="w-[95%]" method="POST">
+            @csrf
+            <button type="submit" style="text-shadow: 2px 2px rgba(0, 19, 44, 1);" class="text-base bg-black text-white px-3 py-1.5 rounded-md hover:bg-gray-700 transition w-[100%]">
+                Logout
+            </button>
+        </form>
         </div>
     </div>
 

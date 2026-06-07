@@ -2,14 +2,18 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Register</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ConnectHub - Register</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="shortcut icon" href="https://cdn.iconscout.com/icon/premium/png-256-thumb/online-registration-icon-svg-download-png-2133475.png" type="image/x-icon">
+    <link rel="shortcut icon" href="https://img.icons8.com/?size=100&id=7859&format=png&color=228BE6" type="image/x-icon">
 </head>
 <body class="bg-gray-100 flex items-center justify-center min-h-screen">
 
     <div class="bg-white shadow-xl rounded-2xl w-full max-w-md p-8">
 
+        <h2 class="text-3xl font-bold text-center text-gray-800 mb-6">
+           Connect<span class="text-blue-600">Hub</span>
+        </h2>
         <h2 class="text-2xl font-bold text-center text-gray-800 mb-6">
             Create Account
         </h2>
@@ -84,6 +88,13 @@
                 Register
             </button>
         </form>
+
+        <p class="text-sm text-center text-gray-600 mt-6">
+            Have an account?
+            <a href="{{ route('login-user') }}" class="text-blue-500 hover:underline">
+                Login
+            </a>
+        </p>
 
     </div>
 
