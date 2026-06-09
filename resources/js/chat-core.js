@@ -37,7 +37,7 @@ export function appendMessageToUI(msg, authId, formatMessageTimeCallback) {
     div.innerHTML = `
         <div id="msg-${msg.messageId}" 
              onclick="window.toggleMessageDetails('${msg.messageId}')"
-             class="message-bubble ${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
+             class="message-bubble ${msg.is_sender ? 'bg-gradient-to-b from-blue-400 to-blue-700 text-white px-4 py-2.5 rounded-2xl rounded-br-none max-w-[85%] shadow-md shadow-blue-700/30 border border-blue-400/20 text-white' : 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-800 px-4 py-2.5 rounded-2xl rounded-bl-none max-w-[85%] shadow-md shadow-gray-400/30 border border-slate-300/40'} px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
             <span>${msg.message}</span>
             ${statusHtml}
         </div>
@@ -79,7 +79,7 @@ export function prependMessageToUI(msg, authId, formatMessageTimeCallback) {
     div.innerHTML = `
         <div id="msg-${msg.messageId}" 
              onclick="window.toggleMessageDetails('${msg.messageId}')"
-             class="message-bubble ${msg.is_sender ? 'bg-blue-500 text-white' : 'bg-gray-200 text-gray-800'} px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
+             class="message-bubble ${msg.is_sender ? 'bg-gradient-to-b from-blue-400 to-blue-700 text-white px-4 py-2.5 rounded-2xl rounded-br-none max-w-[85%] shadow-md shadow-blue-700/30 border border-blue-400/20 text-white' : 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-800 px-4 py-2.5 rounded-2xl rounded-bl-none max-w-[85%] shadow-md shadow-gray-400/30 border border-slate-300/40'} px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
             <span>${msg.message}</span>
             ${statusHtml}
         </div>

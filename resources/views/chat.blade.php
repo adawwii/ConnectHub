@@ -32,17 +32,20 @@
         }
     </style>
 </head>
-<body class="bg-gray-100 h-screen flex flex-col">
+<body class="bg-gradient-to-t from-white to-blue-100/50 text-slate-800 shadow-sm  h-screen flex flex-col">
 <!-- Top Navbar -->
-<div class="bg-white shadow px-4 py-3 flex justify-between items-center">
+<div class="bg-transparent  px-4 py-3 flex justify-between items-center">
 
-    <h1 class="font-bold text-2xl cursor-default "><img class="inline-block mb-1" src="https://img.icons8.com/?size=100&id=7859&format=png&color=228BE6" alt="Home Icon" width="24" height="24"> Connect<span class="text-blue-600">Hub</span></h1>
+    <h1 class="font-bold text-2xl cursor-default "><img class="inline-block mb-1" src="https://img.icons8.com/?size=100&id=7859&format=png&color=228BE6" alt="Home Icon" width="24" height="24"> <span class="bg-gradient-to-r from-slate-700 via-slate-900 to-black bg-clip-text text-transparent tracking-tight">
+    Connect</span><span class="text-xl font-extrabold bg-gradient-to-r from-blue-400 to-blue-700 bg-clip-text text-transparent">Hub</span></h1>
 
     <div class="flex items-center gap-4">
         <!-- Notifications -->
         <div class="relative">
-            <button onclick="toggleNotificationsWrapper()" class="relative">
-                🔔
+            <button onclick="toggleNotificationsWrapper()" class="relative p-2 text-slate-400 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition duration-200 focus:outline-none group">
+                <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 transition-transform group-hover:animate-[wiggle_0.3s_ease-in-out]">
+    <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
+  </svg>
                 {{-- using websockets for notification --}}
                 <span id="notifBadge" class="absolute -top-1 -right-2 bg-red-500 text-white text-xs px-1 rounded-full {{ auth()->user()->unreadNotifications->count() == 0 ? 'hidden' : '' }}">
                     {{ auth()->user()->unreadNotifications->count() }}
@@ -70,12 +73,13 @@
 <div class="flex flex-1 overflow-hidden">
 
     <!-- Sidebar -->
-    <div id="sidebar" class="w-full md:w-1/3 lg:w-1/4 bg-white border-r flex flex-col">
+    <div id="sidebar" class="w-full md:w-1/3 lg:w-1/4 bg-transparent border-none flex flex-col">
 
         <!-- Search Chats -->
         <div class="p-3 border-b">
             <input 
                 type="text" 
+                autocomplete="off"
                 placeholder="Search chats..."
                 onkeyup="filterChats(this.value)"
                 class="w-full border rounded-lg px-3 py-2"
@@ -89,13 +93,14 @@
 
             <input 
                 id="emailSearch"
+                autocomplete="off"
                 name="email"
                 type="text" 
                 placeholder="Search by email..."
                 class="w-full border rounded-lg px-3 py-2 mb-2"
                 required
             >
-            <button type="submit" id="addBtn"  class="w-full bg-blue-500 text-white py-2 rounded-lg">
+            <button type="submit" id="addBtn"  class="w-full bg-gradient-to-r from-blue-400 to-blue-700 text-white py-2 rounded-lg">
                 Add Friend
             </button>
             </form>
@@ -156,7 +161,7 @@
         <div class="flex justify-center my-2 p-0">
         <form action="{{ route('logout') }}" class="w-[95%]" method="POST">
             @csrf
-            <button type="submit" style="text-shadow: 2px 2px rgba(0, 19, 44, 1);" class="text-base bg-black text-white px-3 py-1.5 rounded-md hover:bg-gray-700 transition w-[100%]">
+            <button type="submit" style="text-shadow: 2px 2px rgba(0, 19, 44, 1);" class="text-base bg-gradient-to-t from-slate-800 via-slate-900 to-black hover:from-slate-700 hover:via-slate-800 hover:to-slate-900 text-white px-3 py-1.5 rounded-md transition duration-200 w-[100%]">
                 Logout
             </button>
         </form>
@@ -164,11 +169,11 @@
     </div>
 
     <!-- Chat Area -->
-    <div id="chatArea" class="hidden md:flex flex-1 flex-col">
+    <div id="chatArea" class="hidden md:flex bg-gradient-to-b from-white to-blue-200 flex-1 flex-col">
 @include('components.flash')
 
         <!-- Header -->
-        <div id="chatHeader" class="p-4 bg-white border-b font-semibold text-gray-700 flex items-center gap-2">
+        <div id="chatHeader" class="p-4 bg-gradient-to-t from-white to-blue-100/50 text-slate-800 shadow-sm border-b font-semibold text-gray-700 flex items-center gap-2">
             <button id="backBtn" onclick="showSidebar()" class="md:hidden text-blue-500 mr-1">← </button>
             <div class="flex flex-col">
                 <span id="chatTitle">Select a contact to start chatting</span>
@@ -185,16 +190,19 @@
 
         <!-- Input -->
         <form onsubmit="sendMessage(event)">
-        <div class="p-3 bg-white border-t flex gap-2">
+        <div class="p-3 bg-transparent border-none flex gap-2">
                 <input 
                 id="messageInput"
+                autocomplete="off"
                 type="text"
-                class="flex-1 border rounded-lg px-3 py-2"
+                class="flex-1 border rounded-lg px-3 py-2 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:shadow-md"
                 placeholder="Type message..."
                 oninput="handleTyping()"
                 >
-                <button type='submit'  class="bg-blue-500 text-white px-4 rounded-lg">
-                    Send
+                <button type='submit'  class="bg-gradient-to-r from-blue-400 to-blue-700 text-white px-4 rounded-lg">
+                    <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
+  <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+</svg>
                 </button>
             </div>
         </form>
