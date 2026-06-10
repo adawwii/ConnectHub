@@ -6,6 +6,17 @@
     <title>ConnectHub</title>
     <link rel="shortcut icon" href="https://img.icons8.com/?size=100&id=7859&format=png&color=228BE6" type="image/x-icon">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class'
+        }
+        
+        if (localStorage.getItem('theme') === 'dark' || (!('theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+            document.documentElement.classList.add('dark');
+        } else {
+            document.documentElement.classList.remove('dark');
+        }
+    </script>
     <script defer src="https://unpkg.com/alpinejs@3.x.x/dist/cdn.min.js"></script>
     <meta name="server-time" content="{{ now()->toIso8601String() }}">
     @vite(['resources/js/app.js'])
@@ -32,34 +43,41 @@
         }
     </style>
 </head>
-<body class="bg-gradient-to-t from-white to-blue-100/50 text-slate-800 shadow-sm  h-screen flex flex-col">
+<body class="bg-gradient-to-t from-white to-blue-100/50 dark:from-slate-800 dark:via-blue-950 dark:to-slate-950 text-slate-800 dark:text-gray-100 shadow-sm  h-screen flex flex-col">
 <!-- Top Navbar -->
 <div class="bg-transparent  px-4 py-3 flex justify-between items-center">
 
-    <h1 class="font-bold text-2xl cursor-default "><img class="inline-block mb-1" src="https://img.icons8.com/?size=100&id=7859&format=png&color=228BE6" alt="Home Icon" width="24" height="24"> <span class="bg-gradient-to-r from-slate-700 via-slate-900 to-black bg-clip-text text-transparent tracking-tight">
+    <h1 class="font-bold text-2xl cursor-default "><img class="inline-block mb-1" src="https://img.icons8.com/?size=100&id=7859&format=png&color=228BE6" alt="Home Icon" width="24" height="24"> <span class="bg-gradient-to-r from-slate-700 via-slate-900 to-black dark:from-slate-100 dark:via-slate-300 dark:to-white bg-clip-text text-transparent tracking-tight">
     Connect</span><span class="text-xl font-extrabold bg-gradient-to-r from-blue-400 to-blue-700 bg-clip-text text-transparent">Hub</span></h1>
 
     <div class="flex items-center gap-4">
+        <!-- Theme Toggle -->
+        <button id="themeToggle" class="relative p-2 text-slate-400 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl transition duration-200 focus:outline-none" title="Toggle theme">
+            <span class="dark:hidden">🌙</span>
+            <span class="hidden dark:inline">☀️</span>
+        </button>
+
         <!-- Notifications -->
         <div class="relative">
-            <button onclick="toggleNotificationsWrapper()" class="relative p-2 text-slate-400 text-blue-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition duration-200 focus:outline-none group">
+            <button onclick="toggleNotificationsWrapper()" class="relative p-2 text-slate-400 dark:text-slate-400 hover:text-blue-600 dark:hover:text-blue-400 hover:bg-blue-50 dark:hover:bg-blue-950/40 rounded-xl transition duration-200 focus:outline-none group">
                 <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-6 h-6 transition-transform group-hover:animate-[wiggle_0.3s_ease-in-out]">
     <path stroke-linecap="round" stroke-linejoin="round" d="M14.857 17.082a23.848 23.848 0 0 0 5.454-1.31A8.967 8.967 0 0 1 18 9.75V9A6 6 0 0 0 6 9v.75a8.967 8.967 0 0 1-2.312 6.022c1.733.64 3.56 1.085 5.455 1.31m5.714 0a24.255 24.255 0 0 1-5.714 0m5.714 0a3 3 0 1 1-5.714 0" />
   </svg>
                 {{-- using websockets for notification --}}
-                <span id="notifBadge" class="absolute -top-1 -right-2 bg-red-500 text-white text-xs px-1 rounded-full {{ auth()->user()->unreadNotifications->count() == 0 ? 'hidden' : '' }}">
+                <span class="absolute top-1 right-1 flex h-[15px] w-[15px] items-center justify-center rounded-full bg-red-500 text-[11px] font-bold text-white dark:text-black ring-2 ring-white dark:ring-slate-900
+                {{ auth()->user()->unreadNotifications->count() == 0 ? 'hidden' : '' }}">
                     {{ auth()->user()->unreadNotifications->count() }}
                 </span>
             </button>
 
             <!-- Dropdown -->
-            <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white shadow-xl rounded-lg z-50 border">
-                <div class="p-3 border-b font-semibold flex justify-between items-center">
+            <div id="notifDropdown" class="hidden absolute right-0 mt-2 w-80 bg-white dark:bg-gray-800 shadow-xl rounded-lg z-50 border dark:border-gray-700 text-slate-800 dark:text-gray-100">
+                <div class="p-3 border-b dark:border-gray-700 font-semibold flex justify-between items-center">
                     <span>Notifications</span>
                 </div>
                 <div id="notificationsContainer" class="max-h-60 overflow-y-auto">
                 <!-- JS will render notifications here -->
-                    <div class="p-3 text-sm text-gray-500 text-center">Loading...</div>
+                    <div class="p-3 text-sm text-gray-500 dark:text-gray-400 text-center">Loading...</div>
                 </div>
             </div>
         </div>
@@ -76,18 +94,18 @@
     <div id="sidebar" class="w-full md:w-1/3 lg:w-1/4 bg-transparent border-none flex flex-col">
 
         <!-- Search Chats -->
-        <div class="p-3 border-b">
+        <div class="p-3 border-b dark:border-gray-800">
             <input 
                 type="text" 
                 autocomplete="off"
                 placeholder="Search chats..."
                 onkeyup="filterChats(this.value)"
-                class="w-full border rounded-lg px-3 py-2"
+                class="w-full border dark:border-gray-750 rounded-lg px-3 py-2 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
             >
         </div>
 
         <!-- Add Friend -->
-        <div class="p-3 border-b">
+        <div class="p-3 border-b dark:border-gray-800">
             <form action="{{ route('contact-add') }}" method="POST"  onsubmit="searchUser(event)">
                 @csrf
 
@@ -97,25 +115,35 @@
                 name="email"
                 type="text" 
                 placeholder="Search by email..."
-                class="w-full border rounded-lg px-3 py-2 mb-2"
+                class="w-full border dark:border-gray-750 rounded-lg px-3 py-2 mb-2 dark:bg-gray-800 dark:text-white dark:placeholder-gray-400"
                 required
             >
-            <button type="submit" id="addBtn"  class="w-full bg-gradient-to-r from-blue-400 to-blue-700 text-white py-2 rounded-lg">
+            <button type="submit" id="addBtn"  class="w-full bg-gradient-to-r from-blue-400 to-blue-700 dark:from-blue-500 dark:to-blue-800 text-white py-2 rounded-lg">
                 Add Friend
             </button>
             </form>
         </div>
 
         <!-- Users List -->
-        <div id="chatList" class="flex-1 overflow-y-auto">
+        <div id="chatList" class="flex-1 overflow-y-auto [&::-webkit-scrollbar]:w-3
+            [&::-webkit-scrollbar-track]:bg-transparent
+            [&::-webkit-scrollbar-thumb]:bg-gradient-to-t
+            [&::-webkit-scrollbar-thumb]:from-blue-300
+            [&::-webkit-scrollbar-thumb]:via-blue-500
+            [&::-webkit-scrollbar-thumb]:to-blue-300
+            dark:[&::-webkit-scrollbar-thumb]:from-blue-900
+            dark:[&::-webkit-scrollbar-thumb]:via-blue-400
+            dark:[&::-webkit-scrollbar-thumb]:to-blue-900
+            [&::-webkit-scrollbar-thumb]:rounded-full
+            hover:[&::-webkit-scrollbar-thumb]:bg-gray-500">
             @foreach ($contacts as $contact )    
             <div id="contact-{{ $contact->id }}" 
                  data-chat-id="{{ $contact->chat_id }}"
                  onclick="openChat('{{ $contact->id }}', '{{ $contact->name }}', '{{ $contact->formatted_last_seen }}')"
-                 class="p-3 border-b cursor-pointer hover:bg-gray-100 chat-item flex items-center justify-between">
+                 class="p-3 border-b dark:border-gray-850 cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800/40 chat-item flex items-center justify-between">
                
                 <div class="flex flex-col flex-1 overflow-hidden">
-                    <span id="contact-name-{{ $contact->id }}" class="{{ ($contact->unread_count ?? 0) > 0 ? 'font-bold text-gray-900' : 'font-medium text-gray-800' }}">
+                    <span id="contact-name-{{ $contact->id }}" class="{{ ($contact->unread_count ?? 0) > 0 ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-800 dark:text-gray-200' }}">
                         {{ $contact->name }}
                     </span>
                     
@@ -123,23 +151,23 @@
                     <div class="flex items-center gap-1">
                         <span id="last-msg-ticks-{{ $contact->id }}" class="text-[10px] leading-none">
                              @if($contact->last_message_sender_id == auth()->id())
-                                 {!! $contact->last_message_status['seen'] ? '<span class="text-green-500">✓✓</span>' : ($contact->last_message_status['delivered'] ? '<span class="text-gray-400">✓✓</span>' : '✓') !!}
+                                  {!! $contact->last_message_status['seen'] ? '<span class="text-green-500">✓✓</span>' : ($contact->last_message_status['delivered'] ? '<span class="text-gray-400 dark:text-gray-500">✓✓</span>' : '✓') !!}
                              @endif
                         </span>
-                        <span id="last-msg-text-{{ $contact->id }}" class="text-xs truncate {{ ($contact->unread_count ?? 0) > 0 ? 'font-bold text-blue-600' : 'text-gray-400' }}">
+                        <span id="last-msg-text-{{ $contact->id }}" class="text-xs truncate {{ ($contact->unread_count ?? 0) > 0 ? 'font-bold text-blue-600 dark:text-blue-400' : 'text-gray-400 dark:text-gray-500' }}">
                             @if(($contact->unread_count ?? 0) > 1)
                                 {{ $contact->unread_count }} new messages
                             @else
                                 {{ $contact->last_message ?? 'No messages yet' }}
                             @endif
                         </span>
-                        <span id="sidebar-typing-{{ $contact->id }}" class="text-xs italic text-blue-500 hidden animate-pulse">typing...</span>
+                        <span id="sidebar-typing-{{ $contact->id }}" class="text-xs italic text-blue-500 dark:text-blue-400 hidden animate-pulse">typing...</span>
                     </div>
                 </div>
 
                <!-- Status & Date -->
                 <div class="flex flex-col items-end gap-1">
-                    <span id="last-msg-time-{{ $contact->id }}" class="text-[10px] text-gray-400 whitespace-nowrap message-time-live" data-timestamp="{{ $contact->last_message_at?->toIso8601String() }}">
+                    <span id="last-msg-time-{{ $contact->id }}" class="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap message-time-live" data-timestamp="{{ $contact->last_message_at?->toIso8601String() }}">
                         {{ $contact->formatted_last_message_at }}
                     </span>
                     <div 
@@ -147,7 +175,7 @@
                     class="w-3 h-3 rounded-full bg-gray-400 transition-colors duration-300" 
                     title="offline">
                     </div>
-                    <span id="status-text-{{ $contact->id }}" class="text-[10px] text-gray-400 whitespace-nowrap last-seen-timer" data-timestamp="{{ $contact->last_seen_at?->toIso8601String() }}">
+                    <span id="status-text-{{ $contact->id }}" class="text-[10px] text-gray-400 dark:text-gray-500 whitespace-nowrap last-seen-timer" data-timestamp="{{ $contact->last_seen_at?->toIso8601String() }}">
                         {{ $contact->formatted_last_seen }}
                     </span>
                </div>
@@ -169,24 +197,34 @@
     </div>
 
     <!-- Chat Area -->
-    <div id="chatArea" class="hidden md:flex bg-gradient-to-b from-white to-blue-200 flex-1 flex-col">
+    <div id="chatArea" class="hidden md:flex bg-gradient-to-t from-white to-blue-200 dark:from-slate-800/50 dark:via-blue-950 dark:to-slate-950 flex-1 flex-col ">
 @include('components.flash')
 
         <!-- Header -->
-        <div id="chatHeader" class="p-4 bg-gradient-to-t from-white to-blue-100/50 text-slate-800 shadow-sm border-b font-semibold text-gray-700 flex items-center gap-2">
-            <button id="backBtn" onclick="showSidebar()" class="md:hidden text-blue-500 mr-1">← </button>
+        <div id="chatHeader" class="p-4 bg-gradient-to-b from-white to-blue-100/50 dark:from-blue-950 dark:to-slate-900/50  text-slate-800 dark:text-gray-250 shadow-sm border-b dark:border-gray-800 font-semibold flex items-center gap-2">
+            <button id="backBtn" onclick="showSidebar()" class="md:hidden text-blue-500 dark:text-blue-450 mr-1">← </button>
             <div class="flex flex-col">
-                <span id="chatTitle">Select a contact to start chatting</span>
-                <span id="header-status-text" class="text-xs font-normal text-gray-400"></span>
+                <span id="chatTitle" class="dark:text-gray-100">Select a contact to start chatting</span>
+                <span id="header-status-text" class="text-xs font-normal text-gray-400 dark:text-gray-500"></span>
             </div>
             <div id="header-status-dot" class="w-3 h-3 rounded-full bg-gray-400 hidden"></div>
         </div>
 
         <!-- Messages -->
-        <div id="messages" class="flex-1 p-4 overflow-y-auto space-y-3">
+        <div id="messages" class="flex-1 p-4  space-y-3 overflow-y-auto [&::-webkit-scrollbar]:w-3
+            [&::-webkit-scrollbar-track]:bg-transparent
+            [&::-webkit-scrollbar-thumb]:bg-gradient-to-t
+            [&::-webkit-scrollbar-thumb]:from-blue-300
+            [&::-webkit-scrollbar-thumb]:via-blue-500
+            [&::-webkit-scrollbar-thumb]:to-blue-300
+            dark:[&::-webkit-scrollbar-thumb]:from-blue-900
+            dark:[&::-webkit-scrollbar-thumb]:via-blue-400
+            dark:[&::-webkit-scrollbar-thumb]:to-blue-900
+            [&::-webkit-scrollbar-thumb]:rounded-full
+            hover:[&::-webkit-scrollbar-thumb]:bg-gray-500">
         </div>
 
-        <div id="typing-indicator" class="px-4 py-1 text-sm text-gray-400 italic hidden">typing...</div>
+        <div id="typing-indicator" class="px-4 py-1 text-sm text-gray-400 dark:text-gray-500 italic hidden">typing...</div>
 
         <!-- Input -->
         <form onsubmit="sendMessage(event)">
@@ -195,11 +233,11 @@
                 id="messageInput"
                 autocomplete="off"
                 type="text"
-                class="flex-1 border rounded-lg px-3 py-2 outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:shadow-md"
+                class="flex-1 border dark:border-gray-750 rounded-lg px-3 py-2 outline-none bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-400 focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 focus:shadow-md dark:focus:border-blue-400 dark:focus:ring-blue-450/20"
                 placeholder="Type message..."
                 oninput="handleTyping()"
                 >
-                <button type='submit'  class="bg-gradient-to-r from-blue-400 to-blue-700 text-white px-4 rounded-lg">
+                <button type='submit'  class="bg-gradient-to-r from-blue-400 to-blue-700 dark:from-blue-500 dark:to-blue-800 text-white px-4 rounded-lg">
                     <svg xmlns="http://w3.org" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor" class="w-5 h-5">
   <path stroke-linecap="round" stroke-linejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
 </svg>
@@ -734,33 +772,33 @@
 
                 // Handle Bolding
                 if (unreadCount > 0 && !isSender && activeContactId != contactId) {
-                    textPreview.classList.add('font-bold', 'text-blue-600');
-                    textPreview.classList.remove('text-gray-400');
+                    textPreview.classList.add('font-bold', 'text-blue-600', 'dark:text-blue-400');
+                    textPreview.classList.remove('text-gray-400', 'dark:text-gray-500');
                     if (nameEl) {
-                        nameEl.classList.add('font-bold', 'text-gray-900');
-                        nameEl.classList.remove('font-medium', 'text-gray-800');
+                        nameEl.classList.add('font-bold', 'text-gray-900', 'dark:text-white');
+                        nameEl.classList.remove('font-medium', 'text-gray-800', 'dark:text-gray-200');
                     }
                 } else {
-                    textPreview.classList.remove('font-bold', 'text-blue-600');
-                    textPreview.classList.add('text-gray-400');
+                    textPreview.classList.remove('font-bold', 'text-blue-600', 'dark:text-blue-400');
+                    textPreview.classList.add('text-gray-400', 'dark:text-gray-500');
                     if (nameEl) {
-                        nameEl.classList.remove('font-bold', 'text-gray-900');
-                        nameEl.classList.add('font-medium', 'text-gray-800');
+                        nameEl.classList.remove('font-bold', 'text-gray-900', 'dark:text-white');
+                        nameEl.classList.add('font-medium', 'text-gray-800', 'dark:text-gray-200');
                     }
                 }
             }
             
             // Update ticks: show single tick if WE sent it, clear it if THEY sent it
             if (ticksSpan) {
-                ticksSpan.innerHTML = isSender ? '<span style="color:#e2e8f0" title="Sent">✓</span>' : '';
+                ticksSpan.innerHTML = isSender ? '<span style="color:#e2e8f0" class="dark:text-slate-500" title="Sent">✓</span>' : '';
             }
 
             // Move to top
             chatList.prepend(contactItem);
             
             // Subtle flash effect
-            contactItem.classList.add('bg-blue-50');
-            setTimeout(() => contactItem.classList.remove('bg-blue-50'), 2000);
+            contactItem.classList.add('bg-blue-50', 'dark:bg-blue-950/20');
+            setTimeout(() => contactItem.classList.remove('bg-blue-50', 'dark:bg-blue-950/20'), 2000);
         }
     }
 
@@ -770,6 +808,20 @@
             document.getElementById('chatArea').classList.remove('flex');
             document.getElementById('sidebar').classList.remove('hidden');
         }
+    }
+
+    // Theme toggler click listener
+    const themeToggleBtn = document.getElementById('themeToggle');
+    if (themeToggleBtn) {
+        themeToggleBtn.addEventListener('click', () => {
+            if (document.documentElement.classList.contains('dark')) {
+                document.documentElement.classList.remove('dark');
+                localStorage.setItem('theme', 'light');
+            } else {
+                document.documentElement.classList.add('dark');
+                localStorage.setItem('theme', 'dark');
+            }
+        });
     }
 </script>
 

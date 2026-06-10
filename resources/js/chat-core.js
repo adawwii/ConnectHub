@@ -20,7 +20,7 @@ export function appendMessageToUI(msg, authId, formatMessageTimeCallback) {
         : '';
 
     const detailsHtml = msg.is_sender
-        ? `<div id="details-${msg.messageId}" class="message-details text-gray-500 pr-2 text-right">
+        ? `<div id="details-${msg.messageId}" class="message-details text-gray-500 dark:text-gray-400 pr-2 text-right">
             <div class="delivered-at message-time-live" data-timestamp="${msg.delivered_at || ''}" data-prefix="Delivered at: ">
                 Delivered at: ${msg.delivered_at ? formatMessageTimeCallback(msg.delivered_at) : 'Pending...'}
             </div>
@@ -28,7 +28,7 @@ export function appendMessageToUI(msg, authId, formatMessageTimeCallback) {
                 Seen at: ${msg.seen_at ? formatMessageTimeCallback(msg.seen_at) : 'Unread'}
             </div>
            </div>`
-        : `<div id="details-${msg.messageId}" class="message-details text-gray-500 pl-2 text-left">
+        : `<div id="details-${msg.messageId}" class="message-details text-gray-500 dark:text-gray-400 pl-2 text-left">
             <div class="message-time-live" data-timestamp="${msg.created_at || new Date().toISOString()}" data-prefix="Received at: ">
                 Received at: ${formatMessageTimeCallback(msg.created_at || new Date().toISOString())}
             </div>
@@ -37,7 +37,7 @@ export function appendMessageToUI(msg, authId, formatMessageTimeCallback) {
     div.innerHTML = `
         <div id="msg-${msg.messageId}" 
              onclick="window.toggleMessageDetails('${msg.messageId}')"
-             class="message-bubble ${msg.is_sender ? 'bg-gradient-to-b from-blue-400 to-blue-700 text-white px-4 py-2.5 rounded-2xl rounded-br-none max-w-[85%] shadow-md shadow-blue-700/30 border border-blue-400/20 text-white' : 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-800 px-4 py-2.5 rounded-2xl rounded-bl-none max-w-[85%] shadow-md shadow-gray-400/30 border border-slate-300/40'} px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
+             class="message-bubble ${msg.is_sender ? 'bg-gradient-to-b from-blue-400 to-blue-700 dark:from-blue-500 dark:to-blue-800 text-white px-4 py-2.5 rounded-2xl rounded-br-none max-w-[85%] shadow-md shadow-blue-700/30 dark:shadow-blue-900/40 border border-blue-400/20 dark:border-blue-500/20 text-white' : 'bg-gradient-to-r from-slate-100 to-slate-200 dark:from-gray-800 dark:to-gray-700 text-slate-800 dark:text-gray-100 px-4 py-2.5 rounded-2xl rounded-bl-none max-w-[85%] shadow-md shadow-gray-400/30 dark:shadow-black/30 border border-slate-300/40 dark:border-gray-700/50'} border-t-0 px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
             <span>${msg.message}</span>
             ${statusHtml}
         </div>
@@ -62,7 +62,7 @@ export function prependMessageToUI(msg, authId, formatMessageTimeCallback) {
         : '';
 
     const detailsHtml = msg.is_sender
-        ? `<div id="details-${msg.messageId}" class="message-details text-gray-500 pr-2 text-right">
+        ? `<div id="details-${msg.messageId}" class="message-details text-gray-500 dark:text-gray-400 pr-2 text-right">
             <div class="delivered-at message-time-live" data-timestamp="${msg.delivered_at || ''}" data-prefix="Delivered at: ">
                 Delivered at: ${msg.delivered_at ? formatMessageTimeCallback(msg.delivered_at) : 'Pending...'}
             </div>
@@ -70,7 +70,7 @@ export function prependMessageToUI(msg, authId, formatMessageTimeCallback) {
                 Seen at: ${msg.seen_at ? formatMessageTimeCallback(msg.seen_at) : 'Unread'}
             </div>
            </div>`
-        : `<div id="details-${msg.messageId}" class="message-details text-gray-500 pl-2 text-left">
+        : `<div id="details-${msg.messageId}" class="message-details text-gray-500 dark:text-gray-400 pl-2 text-left">
             <div class="message-time-live" data-timestamp="${msg.created_at || new Date().toISOString()}" data-prefix="Received at: ">
                 Received at: ${formatMessageTimeCallback(msg.created_at || new Date().toISOString())}
             </div>
@@ -79,7 +79,7 @@ export function prependMessageToUI(msg, authId, formatMessageTimeCallback) {
     div.innerHTML = `
         <div id="msg-${msg.messageId}" 
              onclick="window.toggleMessageDetails('${msg.messageId}')"
-             class="message-bubble ${msg.is_sender ? 'bg-gradient-to-b from-blue-400 to-blue-700 text-white px-4 py-2.5 rounded-2xl rounded-br-none max-w-[85%] shadow-md shadow-blue-700/30 border border-blue-400/20 text-white' : 'bg-gradient-to-r from-slate-100 to-slate-200 text-slate-800 px-4 py-2.5 rounded-2xl rounded-bl-none max-w-[85%] shadow-md shadow-gray-400/30 border border-slate-300/40'} px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
+             class="message-bubble ${msg.is_sender ? 'bg-gradient-to-b from-blue-400 to-blue-700 dark:from-blue-500 dark:to-blue-800 text-white px-4 py-2.5 rounded-2xl rounded-br-none max-w-[85%] shadow-md shadow-blue-700/30 dark:shadow-blue-900/40 border border-blue-400/20 dark:border-blue-500/20 text-white' : 'bg-gradient-to-r from-slate-100 to-slate-200 dark:from-gray-800 dark:to-gray-700 text-slate-800 dark:text-gray-100 px-4 py-2.5 rounded-2xl rounded-bl-none max-w-[85%] shadow-md shadow-gray-400/30 dark:shadow-black/30 border border-slate-300/40 dark:border-gray-700/50'} border-t-0 px-4 py-2 rounded-lg max-w-[75%] md:max-w-md shadow-sm break-words">
             <span>${msg.message}</span>
             ${statusHtml}
         </div>

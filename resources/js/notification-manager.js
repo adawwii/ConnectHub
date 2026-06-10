@@ -37,28 +37,28 @@ export function addNotificationToUI(notif, isNew = false, updateBadgeCallback) {
 
     const div = document.createElement('div');
     const isUnread = notif.is_unread || isNew;
-    div.className = `p-3 border-b hover:bg-gray-50 transition-colors ${isUnread ? 'unread bg-blue-50' : ''}`;
+    div.className = `p-3 border-b dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-750 transition-colors ${isUnread ? 'unread bg-blue-50 dark:bg-blue-950/30' : ''}`;
     div.id = `notif-${id}`;
     div.setAttribute('data-sender', senderName);
 
     let actionHtml = '';
     let displayMessage = message;
-    let messageClass = 'text-gray-800';
+    let messageClass = 'text-gray-800 dark:text-gray-100';
 
     if (dataType === 'friend_request_received') {
         if (status === 'accepted') {
             displayMessage = `${senderName} accepted friend request`;
-            messageClass = 'text-gray-500';
-            actionHtml = '<div class="mt-1 text-xs font-bold text-green-600">✓ Added to friends</div>';
+            messageClass = 'text-gray-500 dark:text-gray-400';
+            actionHtml = '<div class="mt-1 text-xs font-bold text-green-600 dark:text-green-400">✓ Added to friends</div>';
         } else if (status === 'rejected') {
             displayMessage = `${senderName} rejected friend request`;
-            messageClass = 'text-gray-500';
-            actionHtml = '<div class="mt-1 text-xs font-bold text-red-600">✕ Request declined</div>';
+            messageClass = 'text-gray-500 dark:text-gray-400';
+            actionHtml = '<div class="mt-1 text-xs font-bold text-red-600 dark:text-red-450">✕ Request declined</div>';
         } else {
             actionHtml = `
                 <div class="mt-2 flex gap-2 action-buttons">
-                    <button onclick="window.handleNotifActionWrapper('${id}', 'accept')" class="bg-blue-500 text-white text-xs px-3 py-1 rounded hover:bg-blue-600">Accept</button>
-                    <button onclick="window.handleNotifActionWrapper('${id}', 'reject')" class="bg-gray-200 text-gray-700 text-xs px-3 py-1 rounded hover:bg-gray-300">Reject</button>
+                    <button onclick="window.handleNotifActionWrapper('${id}', 'accept')" class="bg-blue-500 text-white text-xs px-3 py-1 rounded hover:bg-blue-600 dark:bg-blue-600 dark:hover:bg-blue-700">Accept</button>
+                    <button onclick="window.handleNotifActionWrapper('${id}', 'reject')" class="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 text-xs px-3 py-1 rounded hover:bg-gray-300 dark:hover:bg-gray-650">Reject</button>
                 </div>
             `;
         }
@@ -67,7 +67,7 @@ export function addNotificationToUI(notif, isNew = false, updateBadgeCallback) {
     div.innerHTML = `
         <div class="text-sm font-medium ${messageClass}">${displayMessage}</div>
         <div class="notif-action-area">${actionHtml}</div>
-        <div class="text-xs text-gray-500 mt-1">${createdAt ? new Date(createdAt).toLocaleString() : 'Just now'}</div>
+        <div class="text-xs text-gray-500 dark:text-gray-400 mt-1">${createdAt ? new Date(createdAt).toLocaleString() : 'Just now'}</div>
     `;
 
     if (isNew) {
@@ -139,7 +139,7 @@ export function toggleNotifications(readAllUrl, csrfToken) {
         badge.innerText = "0";
 
         document.querySelectorAll('#notificationsContainer .unread').forEach(el => {
-            el.classList.remove('unread', 'bg-blue-50');
+            el.classList.remove('unread', 'bg-blue-50', 'dark:bg-blue-950/30');
         });
 
         fetch(readAllUrl, {

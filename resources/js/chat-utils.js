@@ -27,11 +27,11 @@ export function toggleMessageDetails(messageId) {
 
 export function highlightContact(id) {
     document.querySelectorAll('.chat-item').forEach(el => {
-        el.classList.remove('bg-blue-50', 'border-l-4', 'border-blue-500');
+        el.classList.remove('bg-blue-50', 'dark:bg-blue-950/40', 'border-l-4', 'border-blue-500', 'dark:border-blue-400');
     });
     const activeEl = document.getElementById(`contact-${id}`);
     if (activeEl) {
-        activeEl.classList.add('bg-blue-50', 'border-l-4', 'border-blue-500');
+        activeEl.classList.add('bg-blue-50', 'dark:bg-blue-950/40', 'border-l-4', 'border-blue-500', 'dark:border-blue-400');
     }
 }
 
